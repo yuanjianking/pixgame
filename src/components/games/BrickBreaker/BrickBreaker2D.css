@@ -60,10 +60,12 @@
   border-right: 3px solid #daaaff;
   flex-shrink: 0;
 }
-
 .brickbreaker-stats {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 20px;
+  flex: 1;
 }
 
 .brickbreaker-score {
@@ -75,6 +77,19 @@
   box-shadow: inset 0 0 6px #e2b0ff, 0 0 12px #b77eff;
   color: #f3e6ff;
   font-family: monospace;
+  min-width: 200px;  /* 设置最小宽度 */
+  text-align: center; /* 文字居中 */
+}
+
+.brickbreaker-level {
+  color: #ffd966;
+  font-family: monospace;
+  background: #2a1a3a;
+  padding: 5px 18px;
+  border-radius: 48px;
+  font-size: 1rem;
+  box-shadow: inset 0 0 4px #ffd966, 0 0 8px #ffaa44;
+  font-weight: bold;
 }
 
 .brickbreaker-lives {
@@ -87,35 +102,20 @@
   box-shadow: inset 0 0 4px #c18eff;
 }
 
-.brickbreaker-reset-btn {
-  background: #3a2552;
-  border: none;
-  color: #f3e6ff;
-  font-family: monospace;
-  font-weight: bold;
-  padding: 5px 22px;
-  border-radius: 48px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  border: 1px solid #c48eff;
-  transition: 0.1s linear;
-  box-shadow: 0 0 6px #bc7aff;
-}
-
-.brickbreaker-reset-btn:hover {
-  background: #5f3a86;
-  transform: scale(0.96);
-  box-shadow: 0 0 16px #daaaff;
-}
-
 .brickbreaker-controls {
   margin-top: 14px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 12px;
   flex-shrink: 0;
+}
+
+.brickbreaker-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .brickbreaker-instructions {
@@ -156,13 +156,71 @@
   cursor: not-allowed;
 }
 
-.brickbreaker-level {
-  color: #ffd966;
+.brickbreaker-save-btn {
+  background: #2a523a;
+  border: none;
+  color: #e6fff3;
   font-family: monospace;
-  background: #2a1a3a;
-  padding: 5px 18px;
-  border-radius: 48px;
-  font-size: 1rem;
-  box-shadow: inset 0 0 4px #ffd966, 0 0 8px #ffaa44;
   font-weight: bold;
+  padding: 5px 22px;
+  border-radius: 48px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border: 1px solid #8effc4;
+  transition: 0.1s linear;
+  box-shadow: 0 0 6px #7affbc;
+}
+
+.brickbreaker-save-btn:hover:not(:disabled) {
+  background: #3a865f;
+  transform: scale(0.96);
+  box-shadow: 0 0 16px #aaffda;
+}
+
+.brickbreaker-load-btn {
+  background: #2a3a52;
+  border: none;
+  color: #e6f3ff;
+  font-family: monospace;
+  font-weight: bold;
+  padding: 5px 22px;
+  border-radius: 48px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border: 1px solid #8ec4ff;
+  transition: 0.1s linear;
+  box-shadow: 0 0 6px #7abcff;
+}
+
+.brickbreaker-load-btn:hover:not(:disabled) {
+  background: #3a5f86;
+  transform: scale(0.96);
+  box-shadow: 0 0 16px #aadaff;
+}
+
+.brickbreaker-load-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+.brickbreaker-reset-btn {
+  background: #3a2552;
+  border: none;
+  color: #f3e6ff;
+  font-family: monospace;
+  font-weight: bold;
+  padding: 5px 22px;
+  border-radius: 48px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border: 1px solid #c48eff;
+  transition: 0.1s linear;
+  box-shadow: 0 0 6px #bc7aff;
+}
+
+.brickbreaker-reset-btn:hover:not(:disabled) {
+  background: #5f3a86;
+  transform: scale(0.96);
+  box-shadow: 0 0 16px #daaaff;
 }

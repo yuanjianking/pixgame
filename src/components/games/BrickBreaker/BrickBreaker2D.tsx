@@ -2,9 +2,17 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import './BrickBreaker2D.css';
 
+interface GameState {
+  score: number;
+  lives: number;
+  gameRunning: boolean;
+  gameOver: boolean;
+  gameWin: boolean;
+  currentLevel: number;
+}
+
 interface BrickBreaker2DProps {
-  onBack: () => void;
-  onGameStateChange?: (state: any) => void;
+  onGameStateChange?: (state: GameState) => void;
 }
 
 interface Particle {
@@ -19,6 +27,29 @@ interface Particle {
   color: string;
 }
 
+interface BrickStyle {
+  main: string;
+  light: string;
+  rune: string;
+}
+
+interface Brick {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  hp: number;
+  initHp: number;
+  style: BrickStyle;
+}
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 interface LevelConfig {
   level: number;
   rows: number;
@@ -30,7 +61,49 @@ interface LevelConfig {
   scoreMultiplier: number; // 分数倍数
 }
 
-const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChange }) => {
+// 保存游戏状态的数据结构
+interface SavedGameState {
+  // 游戏状态
+  score: number;
+  lives: number;
+  gameRunning: boolean;
+  gameOver: boolean;
+  gameWin: boolean;
+  currentLevel: number;
+
+  // 球的状态
+  ball: {
+    x: number;
+    y: number;
+    radius: number;
+    vx: number;
+    vy: number;
+  };
+
+  // 挡板状态
+  paddle: {
+    x: number;
+    width: number;
+    y: number;
+  };
+
+  // 砖块状态
+  bricks: (Brick | null)[][];
+
+  // 关卡配置
+  levelConfig: LevelConfig;
+
+  // 游戏尺寸
+  gameDimensions: {
+    brickRows: number;
+    brickCols: number;
+  };
+
+  // 保存时间戳
+  savedAt: number;
+}
+
+const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onGameStateChange }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationIdRef = useRef<number>(0);
   const mountedRef = useRef(true);
@@ -43,6 +116,10 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
   const [gameWin, setGameWin] = useState(false);
   const [currentLevel, setCurrentLevel] = useState(1);
   const [showLevelUp, setShowLevelUp] = useState(false);
+  const [hasSavedGame, setHasSavedGame] = useState(() => {
+    const savedData = localStorage.getItem('brickbreaker_saved_game');
+    return !!savedData;
+  });
 
   // Game refs for animation loop
   const gameRunningRef = useRef(true);
@@ -55,13 +132,15 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
   // Game constants
   const BASE_WIDTH = 800;
   const BASE_HEIGHT = 550;
-  let WIDTH = BASE_WIDTH;
-  let HEIGHT = BASE_HEIGHT;
-  let PADDLE_WIDTH = 110;
+  const WIDTH = BASE_WIDTH;
+  const HEIGHT = BASE_HEIGHT;
   const PADDLE_HEIGHT = 18;
-  let paddleY = HEIGHT - PADDLE_HEIGHT - 12;
-  let BRICK_ROWS = 6;
-  let BRICK_COLS = 10;
+
+  // Game dimension refs (mutable but don't trigger re-render)
+  const paddleWidthRef = useRef(110);
+  const paddleYRef = useRef(HEIGHT - PADDLE_HEIGHT - 12);
+  const brickRowsRef = useRef(6);
+  const brickColsRef = useRef(10);
 
   // 关卡配置
   const getLevelConfig = (level: number): LevelConfig => {
@@ -82,14 +161,14 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
   // 动态更新游戏尺寸
   const updateGameDimensions = useCallback((level: number) => {
     const config = getLevelConfig(level);
-    BRICK_ROWS = config.rows;
-    BRICK_COLS = config.cols;
-    PADDLE_WIDTH = config.paddleWidth;
-    paddleY = HEIGHT - PADDLE_HEIGHT - 12;
-  }, []);
+    brickRowsRef.current = config.rows;
+    brickColsRef.current = config.cols;
+    paddleWidthRef.current = config.paddleWidth;
+    paddleYRef.current = HEIGHT - PADDLE_HEIGHT - 12;
+  }, [HEIGHT, PADDLE_HEIGHT]);
 
   // Game objects refs
-  const paddleXRef = useRef((WIDTH - PADDLE_WIDTH) / 2);
+  const paddleXRef = useRef(0);
   const ballRef = useRef({
     x: WIDTH / 2,
     y: HEIGHT - 70,
@@ -97,7 +176,7 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
     vx: 2.9,
     vy: -3.3
   });
-  const bricksRef = useRef<any[][]>([]);
+  const bricksRef = useRef<(Brick | null)[][]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const nextParticleId = useRef(0);
   const keysRef = useRef({ ArrowLeft: false, ArrowRight: false });
@@ -131,7 +210,7 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
   // 初始化砖块（根据关卡）
   const initBricks = useCallback(() => {
     const config = currentLevelConfigRef.current;
-    const brickWidth = (WIDTH - 30) / BRICK_COLS;
+    const brickWidth = (WIDTH - 30) / brickColsRef.current;
     const brickHeight = 20;
     const startX = 15;
     const startY = 68;
@@ -147,10 +226,10 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
       { main: '#8a3e7f', light: '#dd99ff', rune: '#ffddff' },
     ];
 
-    const bricksArray: any[][] = [];
-    for (let row = 0; row < BRICK_ROWS; row++) {
+    const bricksArray: (Brick | null)[][] = [];
+    for (let row = 0; row < brickRowsRef.current; row++) {
       bricksArray[row] = [];
-      for (let col = 0; col < BRICK_COLS; col++) {
+      for (let col = 0; col < brickColsRef.current; col++) {
         let hp = 1;
 
         // 根据关卡配置决定是否生成双生命砖块
@@ -160,7 +239,7 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
           // 特定位置也保证有精英砖块
           const isSpecialRow = (row === 2 || row === 4) && (col % 3 === 0 || col % 5 === 2);
           if (isElite || isSpecialRow) hp = 2;
-          if (row === BRICK_ROWS - 1 && col % 4 === 1) hp = 2;
+          if (row === brickRowsRef.current - 1 && col % 4 === 1) hp = 2;
         }
 
         bricksArray[row][col] = {
@@ -175,7 +254,7 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
       }
     }
     bricksRef.current = bricksArray;
-  }, [BRICK_ROWS, BRICK_COLS, WIDTH]);
+  }, [WIDTH]);
 
   // 加载下一关
   const loadNextLevel = useCallback(() => {
@@ -184,13 +263,13 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
     currentLevelConfigRef.current = config;
 
     // 更新游戏尺寸
-    BRICK_ROWS = config.rows;
-    BRICK_COLS = config.cols;
-    PADDLE_WIDTH = config.paddleWidth;
-    paddleY = HEIGHT - PADDLE_HEIGHT - 12;
+    brickRowsRef.current = config.rows;
+    brickColsRef.current = config.cols;
+    paddleWidthRef.current = config.paddleWidth;
+    paddleYRef.current = HEIGHT - PADDLE_HEIGHT - 12;
 
     // 重置挡板位置
-    paddleXRef.current = (WIDTH - PADDLE_WIDTH) / 2;
+    paddleXRef.current = (WIDTH - paddleWidthRef.current) / 2;
 
     // 重置球的位置和速度
     const baseSpeed = 2.9;
@@ -227,12 +306,12 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
 
     const config = getLevelConfig(1);
     currentLevelConfigRef.current = config;
-    BRICK_ROWS = config.rows;
-    BRICK_COLS = config.cols;
-    PADDLE_WIDTH = config.paddleWidth;
-    paddleY = HEIGHT - PADDLE_HEIGHT - 12;
+    brickRowsRef.current = config.rows;
+    brickColsRef.current = config.cols;
+    paddleWidthRef.current = config.paddleWidth;
+    paddleYRef.current = HEIGHT - PADDLE_HEIGHT - 12;
 
-    paddleXRef.current = (WIDTH - PADDLE_WIDTH) / 2;
+    paddleXRef.current = (WIDTH - paddleWidthRef.current) / 2;
     ballRef.current = {
       x: WIDTH / 2,
       y: HEIGHT - 70,
@@ -244,6 +323,7 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
     nextParticleId.current = 0;
     initBricks();
   }, [initBricks, WIDTH, HEIGHT]);
+
 
   // 添加魔法粒子
   const addMagicParticles = useCallback((x: number, y: number, color: string, isElite = false) => {
@@ -264,8 +344,130 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
     }
   }, []);
 
+  // 保存当前游戏状态到本地存储
+  const saveGame = useCallback(() => {
+    try {
+      const savedState: SavedGameState = {
+        // 游戏状态
+        score: scoreRef.current,
+        lives: livesRef.current,
+        gameRunning: gameRunningRef.current,
+        gameOver: gameOverRef.current,
+        gameWin: gameWinRef.current,
+        currentLevel: currentLevelRef.current,
+
+        // 球的状态
+        ball: {
+          x: ballRef.current.x,
+          y: ballRef.current.y,
+          radius: ballRef.current.radius,
+          vx: ballRef.current.vx,
+          vy: ballRef.current.vy,
+        },
+
+        // 挡板状态
+        paddle: {
+          x: paddleXRef.current,
+          width: paddleWidthRef.current,
+          y: paddleYRef.current,
+        },
+
+        // 砖块状态 - 需要深拷贝
+        bricks: bricksRef.current.map(row =>
+          row.map(brick =>
+            brick ? { ...brick } : null
+          )
+        ),
+
+        // 关卡配置
+        levelConfig: { ...currentLevelConfigRef.current },
+
+        // 游戏尺寸
+        gameDimensions: {
+          brickRows: brickRowsRef.current,
+          brickCols: brickColsRef.current,
+        },
+
+        // 保存时间戳
+        savedAt: Date.now(),
+      };
+
+      localStorage.setItem('brickbreaker_saved_game', JSON.stringify(savedState));
+      setHasSavedGame(true);
+
+      // 添加保存成功的视觉反馈
+      addMagicParticles(WIDTH / 2, HEIGHT / 2, '#aaffaa', true);
+
+      return true;
+    } catch (error) {
+      console.error('保存游戏失败:', error);
+      return false;
+    }
+  }, [addMagicParticles, WIDTH, HEIGHT]);
+
+  // 从本地存储加载游戏状态
+  const loadGame = useCallback(() => {
+    try {
+      const savedData = localStorage.getItem('brickbreaker_saved_game');
+      if (!savedData) {
+        console.log('没有找到保存的游戏');
+        return false;
+      }
+
+      const savedState: SavedGameState = JSON.parse(savedData);
+
+      // 验证保存的数据结构
+      if (!savedState.ball || !savedState.paddle || !savedState.bricks || !savedState.levelConfig) {
+        console.error('保存的游戏数据格式不正确');
+        return false;
+      }
+
+      // 恢复游戏状态
+      setScore(savedState.score);
+      setLives(savedState.lives);
+      setGameRunning(savedState.gameRunning);
+      setGameOver(savedState.gameOver);
+      setGameWin(savedState.gameWin);
+      setCurrentLevel(savedState.currentLevel);
+
+      // 恢复refs
+      scoreRef.current = savedState.score;
+      livesRef.current = savedState.lives;
+      gameRunningRef.current = savedState.gameRunning;
+      gameOverRef.current = savedState.gameOver;
+      gameWinRef.current = savedState.gameWin;
+      currentLevelRef.current = savedState.currentLevel;
+
+      // 恢复球的状态
+      ballRef.current = { ...savedState.ball };
+
+      // 恢复挡板状态
+      paddleXRef.current = savedState.paddle.x;
+      paddleWidthRef.current = savedState.paddle.width;
+      paddleYRef.current = savedState.paddle.y;
+
+      // 恢复砖块状态
+      bricksRef.current = savedState.bricks;
+
+      // 恢复关卡配置
+      currentLevelConfigRef.current = { ...savedState.levelConfig };
+
+      // 恢复游戏尺寸
+      brickRowsRef.current = savedState.gameDimensions.brickRows;
+      brickColsRef.current = savedState.gameDimensions.brickCols;
+
+      // 添加加载成功的视觉反馈
+      addMagicParticles(WIDTH / 2, HEIGHT / 2, '#aaaaff', true);
+
+      return true;
+    } catch (error) {
+      console.error('加载游戏失败:', error);
+      return false;
+    }
+  }, [addMagicParticles, WIDTH, HEIGHT]);
+
   // 碰撞检测
-  const collisionRect = (r1: any, r2: any) => {
+  const collisionRect = (r1: Rect, r2: Rect) => {
     return !(r2.x > r1.x + r1.w ||
       r2.x + r2.w < r1.x ||
       r2.y > r1.y + r1.h ||
@@ -276,11 +478,10 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
   const handleBrickCollision = useCallback(() => {
     const ball = ballRef.current;
     let scoreToAdd = 0;
-    let bricksChanged = false;
     const config = currentLevelConfigRef.current;
 
-    for (let row = 0; row < BRICK_ROWS; row++) {
-      for (let col = 0; col < BRICK_COLS; col++) {
+    for (let row = 0; row < brickRowsRef.current; row++) {
+      for (let col = 0; col < brickColsRef.current; col++) {
         const brick = bricksRef.current[row]?.[col];
         if (!brick || brick.hp <= 0) continue;
 
@@ -308,14 +509,14 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
           if (minX < minY) ball.vx = -ball.vx;
           else ball.vy = -ball.vy;
 
-          brick.hp--;
-          if (brick.hp <= 0) {
+          const newHp = brick.hp - 1;
+          if (newHp <= 0) {
             const points = Math.floor((brick.initHp === 2 ? 35 : 15) * config.scoreMultiplier);
             scoreToAdd += points;
             addMagicParticles(brick.x + brick.w / 2, brick.y + brick.h / 2, '#f0c0ff', brick.initHp === 2);
             bricksRef.current[row][col] = null;
-            bricksChanged = true;
           } else {
+            bricksRef.current[row][col] = { ...brick, hp: newHp };
             addMagicParticles(brick.x + brick.w / 2, brick.y + brick.h / 2, '#d9aaff', false);
           }
 
@@ -331,7 +532,7 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
         }
       }
     }
-  }, [addMagicParticles, BRICK_ROWS, BRICK_COLS]);
+  }, [addMagicParticles]);
 
   // 游戏更新逻辑
   const updateGame = useCallback(() => {
@@ -342,7 +543,7 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
     if (keysRef.current.ArrowLeft && paddleXRef.current > 0) {
       paddleXRef.current -= 7.5;
     }
-    if (keysRef.current.ArrowRight && paddleXRef.current < WIDTH - PADDLE_WIDTH) {
+    if (keysRef.current.ArrowRight && paddleXRef.current < WIDTH - paddleWidthRef.current) {
       paddleXRef.current += 7.5;
     }
 
@@ -368,20 +569,20 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
     }
 
     // 挡板碰撞
-    if (ball.y + ball.radius >= paddleY &&
-      ball.y - ball.radius <= paddleY + PADDLE_HEIGHT &&
+    if (ball.y + ball.radius >= paddleYRef.current &&
+      ball.y - ball.radius <= paddleYRef.current + PADDLE_HEIGHT &&
       ball.x + ball.radius >= paddleXRef.current &&
-      ball.x - ball.radius <= paddleXRef.current + PADDLE_WIDTH) {
+      ball.x - ball.radius <= paddleXRef.current + paddleWidthRef.current) {
 
-      const hitPos = (ball.x - paddleXRef.current) / PADDLE_WIDTH;
+      const hitPos = (ball.x - paddleXRef.current) / paddleWidthRef.current;
       const angle = (hitPos - 0.5) * 1.25;
       const speed = Math.hypot(ball.vx, ball.vy);
-      let newVx = Math.sin(angle) * speed;
-      let newVy = -Math.cos(angle) * speed;
+      const newVx = Math.sin(angle) * speed;
+      const newVy = -Math.cos(angle) * speed;
       ball.vx = Math.min(Math.max(newVx, -5.8 * config.ballSpeed), 5.8 * config.ballSpeed);
       ball.vy = newVy;
       if (ball.vy > -1.9) ball.vy = -2.4;
-      ball.y = paddleY - ball.radius;
+      ball.y = paddleYRef.current - ball.radius;
       addMagicParticles(ball.x, ball.y, '#eac0ff', false);
     }
 
@@ -399,7 +600,7 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
       const baseSpeed = 2.9;
       ball.vx = baseSpeed * config.ballSpeed * (Math.random() > 0.5 ? 1 : -1);
       ball.vy = -3.2 * config.ballSpeed;
-      paddleXRef.current = (WIDTH - PADDLE_WIDTH) / 2;
+      paddleXRef.current = (WIDTH - paddleWidthRef.current) / 2;
       addMagicParticles(ball.x, ball.y, '#ffaaee', true);
     }
 
@@ -408,9 +609,9 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
 
     // 胜利判定 - 进入下一关
     let allGone = true;
-    for (let row = 0; row < BRICK_ROWS; row++) {
-      for (let col = 0; col < BRICK_COLS; col++) {
-        if (bricksRef.current[row]?.[col]?.hp > 0) allGone = false;
+    for (let row = 0; row < brickRowsRef.current; row++) {
+      for (let col = 0; col < brickColsRef.current; col++) {
+        if ((bricksRef.current[row]?.[col]?.hp ?? 0) > 0) allGone = false;
       }
     }
     if (allGone) {
@@ -435,7 +636,7 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
         i--;
       }
     }
-  }, [handleBrickCollision, addMagicParticles, loadNextLevel, WIDTH, HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT, paddleY]);
+  }, [handleBrickCollision, addMagicParticles, loadNextLevel, WIDTH, HEIGHT, PADDLE_HEIGHT]);
 
   // 渲染函数
   const render = useCallback(() => {
@@ -470,8 +671,8 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
     }
 
     // 绘制砖块
-    for (let row = 0; row < BRICK_ROWS; row++) {
-      for (let col = 0; col < BRICK_COLS; col++) {
+    for (let row = 0; row < brickRowsRef.current; row++) {
+      for (let col = 0; col < brickColsRef.current; col++) {
         const b = bricksRef.current[row]?.[col];
         if (!b || b.hp <= 0) continue;
         const { x, y, w, h, hp, style } = b;
@@ -502,17 +703,17 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
     const paddleX = paddleXRef.current;
     ctx.shadowBlur = 10;
     ctx.shadowColor = "#c795ff";
-    const paddleGrad = ctx.createLinearGradient(paddleX, paddleY, paddleX + PADDLE_WIDTH, paddleY + PADDLE_HEIGHT);
+    const paddleGrad = ctx.createLinearGradient(paddleX, paddleYRef.current, paddleX + paddleWidthRef.current, paddleYRef.current + PADDLE_HEIGHT);
     paddleGrad.addColorStop(0, '#6a3e8a');
     paddleGrad.addColorStop(1, '#361f52');
     ctx.fillStyle = paddleGrad;
-    ctx.fillRect(paddleX, paddleY, PADDLE_WIDTH, PADDLE_HEIGHT);
+    ctx.fillRect(paddleX, paddleYRef.current, paddleWidthRef.current, PADDLE_HEIGHT);
     ctx.fillStyle = "#eac0ff";
-    ctx.fillRect(paddleX + 8, paddleY + 4, PADDLE_WIDTH - 16, 3);
-    for (let i = 0; i < 5; i++) ctx.fillRect(paddleX + 12 + i * 18, paddleY + 9, 6, 4);
+    ctx.fillRect(paddleX + 8, paddleYRef.current + 4, paddleWidthRef.current - 16, 3);
+    for (let i = 0; i < 5; i++) ctx.fillRect(paddleX + 12 + i * 18, paddleYRef.current + 9, 6, 4);
     ctx.fillStyle = "#ffecb3";
     ctx.font = "bold 14px monospace";
-    ctx.fillText("✦", paddleX + PADDLE_WIDTH / 2 - 6, paddleY + 13);
+    ctx.fillText("✦", paddleX + paddleWidthRef.current / 2 - 6, paddleYRef.current + 13);
     ctx.shadowBlur = 0;
 
     // 绘制球
@@ -549,15 +750,15 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
     ctx.fillText("魔法弹道", WIDTH - 220, 44);
 
     let remaining = 0;
-    for (let row = 0; row < BRICK_ROWS; row++) {
-      for (let col = 0; col < BRICK_COLS; col++) {
-        if (bricksRef.current[row]?.[col]?.hp > 0) remaining++;
+    for (let row = 0; row < brickRowsRef.current; row++) {
+      for (let col = 0; col < brickColsRef.current; col++) {
+        if ((bricksRef.current[row]?.[col]?.hp ?? 0) > 0) remaining++;
       }
     }
     ctx.fillStyle = "#dbb2ff";
     ctx.fillRect(WIDTH - 150, 35, 100, 8);
     ctx.fillStyle = "#be7eff";
-    ctx.fillRect(WIDTH - 150, 35, 100 * (1 - remaining / (BRICK_ROWS * BRICK_COLS)), 8);
+    ctx.fillRect(WIDTH - 150, 35, 100 * (1 - remaining / (brickRowsRef.current * brickColsRef.current)), 8);
     ctx.fillStyle = "#ffe2b3";
     ctx.fillText(`🧙 魔晶余烬: ${remaining}`, WIDTH - 450, 44);
 
@@ -586,35 +787,45 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
       ctx.fillStyle = "#f2d9ff";
       ctx.shadowBlur = 8;
 
-      let msg = gameOverRef.current ? "💀 咒术溃败 · 重启 💀" : "🌙 沉寂法阵";
+      const msg = gameOverRef.current ? "💀 咒术溃败 · 重启 💀" : "🌙 沉寂法阵";
       ctx.fillText(msg, WIDTH / 2 - ctx.measureText(msg).width / 2, HEIGHT / 2 - 30);
       ctx.font = "16px monospace";
       ctx.fillStyle = "#cfb5ff";
-      let sub = "点击 [吟唱重启] 继续远征";
+      const sub = "点击 [吟唱重启] 继续远征";
       ctx.fillText(sub, WIDTH / 2 - ctx.measureText(sub).width / 2, HEIGHT / 2 + 35);
       ctx.shadowBlur = 0;
     }
-  }, [currentLevel, showLevelUp, BRICK_ROWS, BRICK_COLS, WIDTH, HEIGHT]);
+  }, [currentLevel, showLevelUp, WIDTH, HEIGHT]);
 
   // 游戏循环
-  const gameLoop = useCallback(() => {
-    if (!mountedRef.current) return;
-    updateGame();
-    render();
-    animationIdRef.current = requestAnimationFrame(gameLoop);
+  const gameLoopRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    gameLoopRef.current = () => {
+      if (!mountedRef.current) return;
+      updateGame();
+      render();
+      animationIdRef.current = requestAnimationFrame(gameLoopRef.current);
+    };
   }, [updateGame, render]);
 
   // 启动游戏循环
   useEffect(() => {
     mountedRef.current = true;
-    animationIdRef.current = requestAnimationFrame(gameLoop);
+    const loop = () => {
+      if (!mountedRef.current) return;
+      updateGame();
+      render();
+      animationIdRef.current = requestAnimationFrame(loop);
+    };
+    animationIdRef.current = requestAnimationFrame(loop);
     return () => {
       mountedRef.current = false;
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
     };
-  }, [gameLoop]);
+  }, [updateGame, render]);
 
   // 键盘事件
   useEffect(() => {
@@ -656,8 +867,8 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
       const rect = canvas.getBoundingClientRect();
       const touchX = e.touches[0].clientX - rect.left;
       const scaleX = WIDTH / rect.width;
-      let newX = touchX * scaleX - PADDLE_WIDTH / 2;
-      newX = Math.min(Math.max(newX, 0), WIDTH - PADDLE_WIDTH);
+      let newX = touchX * scaleX - paddleWidthRef.current / 2;
+      newX = Math.min(Math.max(newX, 0), WIDTH - paddleWidthRef.current);
       paddleXRef.current = newX;
     };
 
@@ -666,7 +877,7 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
     return () => {
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [WIDTH, PADDLE_WIDTH]);
+  }, [WIDTH]);
 
   // 通知父组件状态变化
   useEffect(() => {
@@ -679,8 +890,25 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
   useEffect(() => {
     updateGameDimensions(1);
     initBricks();
-    resetGame();
-  }, [initBricks, resetGame, updateGameDimensions]);
+
+    // 初始化refs而不调用setState
+    const config = getLevelConfig(1);
+    currentLevelConfigRef.current = config;
+    brickRowsRef.current = config.rows;
+    brickColsRef.current = config.cols;
+    paddleWidthRef.current = config.paddleWidth;
+    paddleYRef.current = HEIGHT - PADDLE_HEIGHT - 12;
+    paddleXRef.current = (WIDTH - paddleWidthRef.current) / 2;
+    ballRef.current = {
+      x: WIDTH / 2,
+      y: HEIGHT - 70,
+      radius: 8,
+      vx: 2.9 * (Math.random() > 0.5 ? 1 : -1),
+      vy: -3.3
+    };
+    particlesRef.current = [];
+    nextParticleId.current = 0;
+  }, [initBricks, updateGameDimensions, WIDTH, HEIGHT, PADDLE_HEIGHT]);
 
   return (
     <div className="brickbreaker-wrapper">
@@ -698,9 +926,6 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
               🧙 生命符文: <span>{'❤️'.repeat(lives)}</span>
             </div>
           </div>
-          <button onClick={resetGame} className="brickbreaker-reset-btn">
-            🌀 吟唱重启
-          </button>
         </div>
 
         <div className="brickbreaker-canvas-wrapper">
@@ -716,13 +941,29 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onBack, onGameStateChan
           <div className="brickbreaker-instructions">
             🧝 ← → 移动魔法杖 | 击碎魔晶砖块 · 暗黑魔幻纪元 | 空格暂停/继续 | R 重启
           </div>
-          <button
-            onClick={() => setGameRunning(!gameRunning)}
-            className="brickbreaker-pause-btn"
-            disabled={gameOver}
-          >
-            {gameRunning ? '⏸️ 暂停' : '▶️ 继续'}
-          </button>
+          <div className="brickbreaker-buttons">
+            <button
+              onClick={() => setGameRunning(!gameRunning)}
+              className="brickbreaker-pause-btn"
+              disabled={gameOver}
+            >
+              {gameRunning ? '⏸️ 暂停' : '▶️ 继续'}
+            </button>
+            <button onClick={saveGame} className="brickbreaker-save-btn">
+              💾 封印存档
+            </button>
+            <button
+              onClick={loadGame}
+              className="brickbreaker-load-btn"
+              disabled={!hasSavedGame}
+              title={hasSavedGame ? "从本地存储加载保存的游戏" : "没有找到保存的游戏"}
+            >
+              📜 解封存档
+            </button>
+            <button onClick={resetGame} className="brickbreaker-reset-btn">
+              🌀 吟唱重启
+            </button>
+          </div>
         </div>
       </div>
     </div>
