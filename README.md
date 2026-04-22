@@ -1,6 +1,3 @@
-明白了！让我为你写一个完整的 README，介绍整个 PixGame 游戏平台：
-
-```markdown
 # 🎮 PixGame - 游戏合集平台
 
 一个基于 React + TypeScript + Vite 开发的精美游戏合集网站，汇集了多款精心设计的 H5 小游戏。
