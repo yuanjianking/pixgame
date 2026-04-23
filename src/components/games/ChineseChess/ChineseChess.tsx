@@ -1,6 +1,7 @@
 // ChineseChess.tsx
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import './ChineseChess.css';
+import { openingBook } from './OpeningBook';
 
 interface Piece {
   type: string;
@@ -587,146 +588,216 @@ const ChineseChess: React.FC = () => {
 
 
   const getOpeningMove = (board: (Piece | null)[][]) => {
-    // 默认
-    let opening = "unknown";
-    let detail = "";
+    let openingType = "unknown";
 
-    // === 中炮 ===
-    const redCenterCannon =
-      (board[7][3]?.type === "cannon" && board[7][3]?.color === "r") ||
-      (board[7][5]?.type === "cannon" && board[7][5]?.color === "r");
-
-    if (redCenterCannon && board[6][4]?.type !== "king") {
-      opening = "center_cannon";
-      detail = "中炮体系";
-    }
-
-    // === 仙人指路（只看兵推进，不用 or）===
-    const pawnPush =
-      [0, 2, 4, 6, 8].some((j) => board[6][j] === null);
-
-    if (pawnPush && opening === "unknown") {
-      opening = "pawn_advance";
-      detail = "仙人指路";
-    }
-
-    // === 飞象（结构判断）===
-    if (
-      (board[9][2]?.type === "bishop" && board[7][4]?.type === "bishop") ||
-      (board[9][6]?.type === "bishop" && board[7][4]?.type === "bishop")
-    ) {
-      if (opening === "unknown") {
-        opening = "elephant";
-        detail = "飞象局";
-      }
-    }
-
-    // === 起马 ===
-    if (
-      (board[9][1]?.type === "knight" && board[7][2]?.type === "knight") ||
-      (board[9][7]?.type === "knight" && board[7][6]?.type === "knight")
-    ) {
-      if (opening === "unknown") {
-        opening = "horse_opening";
-        detail = "起马局";
-      }
-    }
-
-    return { opening, detail };
-  };
-
-  const getOpeningResponse = useCallback((board: (Piece | null)[][]) => {
-    const moves = getAllMoves(board, "b");
-
-    const { opening, detail } = getOpeningMove(board);
-
-    // === 候选池（评分系统）===
-    const candidates: {
-      from: [number, number];
-      to: [number, number];
-      score: number;
-    }[] = [];
-
-    const add = (from: [number, number], to: [number, number], score: number) => {
-      candidates.push({ from, to, score });
+    // 检查哪些原始位置变空了（说明棋子移动了）- 添加类型声明
+    const redOriginalPositions: Record<string, boolean> = {
+      "7,7": board[7][7] === null,  // 左炮原始位置（炮二）
+      "7,1": board[7][1] === null,  // 右炮原始位置（炮八）
+      "6,0": board[6][0] === null,  // 兵一
+      "6,2": board[6][2] === null,  // 兵二
+      "6,4": board[6][4] === null,  // 兵三
+      "6,6": board[6][6] === null,  // 兵四
+      "6,8": board[6][8] === null,  // 兵五
+      "9,1": board[9][1] === null,  // 左马
+      "9,7": board[9][7] === null,  // 右马
+      "9,2": board[9][2] === null,  // 左相
+      "9,6": board[9][6] === null,  // 右相
     };
 
-    // =========================
-    // 1. 中炮应对（稳定版）
-    // =========================
-    if (opening === "center_cannon") {
-      add([0, 7], [2, 6], 100); // 马八进七
-      add([0, 1], [2, 2], 100); // 马二进三
-      add([2, 7], [3, 5], 95);  // 炮八平五
-      add([2, 1], [3, 3], 95);
-      add([3, 6], [4, 6], 90);  // 卒
+    console.log("移动的原始位置:", Object.entries(redOriginalPositions).filter(([, moved]) => moved).map(([pos]) => pos));
+
+    // ========== 炮类开局检测 ==========
+
+    // 1. 中炮：左炮平五（炮二平五）或右炮平五（炮八平五）
+    if (board[7][5]?.type === "cannon" && board[7][5]?.color === "r" && redOriginalPositions["7,7"]) {
+      openingType = "center_cannon";
+      console.log("✅ 检测到中炮开局（炮二平五）");
+    }
+    else if (board[7][3]?.type === "cannon" && board[7][3]?.color === "r" && redOriginalPositions["7,1"]) {
+      openingType = "center_cannon";
+      console.log("✅ 检测到中炮开局（炮八平五）");
     }
 
-    // =========================
-    // 2. 仙人指路
-    // =========================
-    if (opening === "pawn_advance") {
-      add([2, 7], [3, 5], 100);
-      add([2, 1], [3, 3], 95);
-      add([0, 7], [2, 6], 90);
-      add([3, 6], [4, 6], 85);
-    }
-
-    // =========================
-    // 3. 飞象局
-    // =========================
-    if (opening === "elephant") {
-      add([2, 7], [3, 5], 100);
-      add([0, 7], [2, 6], 95);
-      add([0, 1], [2, 2], 95);
-    }
-
-    // =========================
-    // 4. 起马局
-    // =========================
-    if (opening === "horse_opening") {
-      add([2, 7], [3, 5], 95);
-      add([0, 7], [2, 6], 90);
-      add([3, 6], [4, 6], 85);
-    }
-
-    // =========================
-    // 5. 通用兜底（关键修复点）
-    // =========================
-    if (opening === "unknown") {
-      add([0, 7], [2, 6], 80);
-      add([0, 1], [2, 2], 80);
-      add([2, 7], [3, 5], 75);
-    }
-
-    // =========================
-    // 选择最佳 move（关键修复）
-    // =========================
-    let bestMove = null;
-    let bestScore = -Infinity;
-
-    for (const c of candidates) {
-      const match = moves.find(
-        (m) =>
-          m.from.row === c.from[0] &&
-          m.from.col === c.from[1] &&
-          m.to.row === c.to[0] &&
-          m.to.col === c.to[1]
-      );
-
-      if (match && c.score > bestScore) {
-        bestScore = c.score;
-        bestMove = match;
+    // 2. 过宫炮：左炮平六（炮二平六）或右炮平六（炮八平六）
+    if (openingType === "unknown" && board[7][4]?.type === "cannon" && board[7][4]?.color === "r") {
+      if (redOriginalPositions["7,7"]) {
+        openingType = "palace_cannon";
+        console.log("✅ 检测到过宫炮开局（炮二平六）");
+      } else if (redOriginalPositions["7,1"]) {
+        openingType = "palace_cannon";
+        console.log("✅ 检测到过宫炮开局（炮八平六）");
       }
     }
 
-    if (bestMove) {
-      console.log(`开局应对: ${detail || opening}, score=${bestScore}`);
-      return bestMove;
+    // 3. 士角炮：左炮平四（炮二平四）或右炮平四（炮八平四）
+    if (openingType === "unknown" && board[7][3]?.type === "cannon" && board[7][3]?.color === "r") {
+      if (redOriginalPositions["7,7"]) {
+        openingType = "corner_cannon";
+        console.log("✅ 检测到士角炮开局（炮二平四）");
+      } else if (redOriginalPositions["7,1"]) {
+        openingType = "corner_cannon";
+        console.log("✅ 检测到士角炮开局（炮八平四）");
+      }
     }
 
+    // 4. 金钩炮：左炮平七（炮二平七）或右炮平三（炮八平三）
+    if (openingType === "unknown" && board[7][0]?.type === "cannon" && board[7][0]?.color === "r" && redOriginalPositions["7,7"]) {
+      openingType = "hook_cannon";
+      console.log("✅ 检测到金钩炮开局（炮二平七）");
+    }
+    if (openingType === "unknown" && board[7][8]?.type === "cannon" && board[7][8]?.color === "r" && redOriginalPositions["7,1"]) {
+      openingType = "hook_cannon";
+      console.log("✅ 检测到金钩炮开局（炮八平三）");
+    }
+
+    // ========== 兵类开局检测 ==========
+
+    // 5. 仙人指路
+    if (openingType === "unknown") {
+      const pawnMoves = [
+        { from: "6,0", to: [5, 0] as const, name: "兵九进一" },
+        { from: "6,2", to: [5, 2] as const, name: "兵七进一" },
+        { from: "6,4", to: [5, 4] as const, name: "兵五进一" },
+        { from: "6,6", to: [5, 6] as const, name: "兵三进一" },
+        { from: "6,8", to: [5, 8] as const, name: "兵一进一" }
+      ];
+
+      for (const pawn of pawnMoves) {
+        if (redOriginalPositions[pawn.from] &&
+            board[pawn.to[0]][pawn.to[1]]?.type === "pawn" &&
+            board[pawn.to[0]][pawn.to[1]]?.color === "r") {
+          openingType = "pawn_advance";
+          console.log(`✅ 检测到仙人指路（${pawn.name}）`);
+          break;
+        }
+      }
+    }
+
+    // ========== 马类开局检测 ==========
+
+    // 6. 起马局
+    if (openingType === "unknown") {
+      // 左马跳出（马八进七）
+      if (redOriginalPositions["9,1"]) {
+        if ((board[7][0]?.type === "knight" && board[7][0]?.color === "r") ||
+            (board[7][2]?.type === "knight" && board[7][2]?.color === "r")) {
+          openingType = "horse_opening";
+          console.log("✅ 检测到起马局（马八进七）");
+        }
+      }
+      // 右马跳出（马二进三）
+      if (openingType === "unknown" && redOriginalPositions["9,7"]) {
+        if ((board[7][6]?.type === "knight" && board[7][6]?.color === "r") ||
+            (board[7][8]?.type === "knight" && board[7][8]?.color === "r")) {
+          openingType = "horse_opening";
+          console.log("✅ 检测到起马局（马二进三）");
+        }
+      }
+    }
+
+    // ========== 相类开局检测 ==========
+
+    // 7. 飞相局
+    if (openingType === "unknown" && board[7][4]?.type === "bishop" && board[7][4]?.color === "r") {
+      if (redOriginalPositions["9,2"] || redOriginalPositions["9,6"]) {
+        openingType = "elephant";
+        console.log("✅ 检测到飞相局");
+      }
+    }
+
+    const description = openingBook.getOpeningDescription(openingType);
+
+    // 统计已走步数
+    let moveCount = 0;
+    const redStart = new Set([
+      "9,0", "9,1", "9,2", "9,3", "9,4", "9,5", "9,6", "9,7", "9,8",
+      "7,1", "7,7", "6,0", "6,2", "6,4", "6,6", "6,8"
+    ]);
+    const blackStart = new Set([
+      "0,0", "0,1", "0,2", "0,3", "0,4", "0,5", "0,6", "0,7", "0,8",
+      "2,1", "2,7", "3,0", "3,2", "3,4", "3,6", "3,8"
+    ]);
+
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 9; col++) {
+        const piece = board[row][col];
+        if (piece) {
+          const key = `${row},${col}`;
+          if (piece.color === 'r' && !redStart.has(key)) {
+            moveCount++;
+          } else if (piece.color === 'b' && !blackStart.has(key)) {
+            moveCount++;
+          }
+        }
+      }
+    }
+
+    console.log(`检测结果: ${openingType}, 已走步数: ${moveCount}`);
+
+    return { opening: openingType, detail: description, moveCount };
+  };
+
+// 修改 getOpeningResponse，添加更多调试信息
+const getOpeningResponse = useCallback((board: (Piece | null)[][]) => {
+  const moves = getAllMoves(board, "b");
+  const { opening, detail, moveCount } = getOpeningMove(board);
+
+  console.log(`开局库检查: opening=${opening}, moveCount=${moveCount}, shouldUse=${openingBook.shouldUseOpeningBook(moveCount)}`);
+
+  // 检查是否应该继续使用开局库
+  if (!openingBook.shouldUseOpeningBook(moveCount)) {
+    console.log(`开局库结束（已走${moveCount}步）`);
     return null;
-  }, [getAllMoves]);
+  }
+
+  // 如果是 unknown 开局，也返回 null 让 AI 自己计算
+  if (opening === "unknown") {
+    console.log(`未识别的开局，使用AI计算`);
+    return null;
+  }
+
+  // 获取最佳应对
+  const bestResponse = openingBook.getBestResponse(opening);
+
+  if (bestResponse) {
+    console.log(`尝试开局应对: ${bestResponse.chineseNotation} (${bestResponse.from} -> ${bestResponse.to})`);
+
+    const match = moves.find(
+      (m) =>
+        m.from.row === bestResponse.from[0] &&
+        m.from.col === bestResponse.from[1] &&
+        m.to.row === bestResponse.to[0] &&
+        m.to.col === bestResponse.to[1]
+    );
+
+    if (match) {
+      console.log(`✅ 开局库命中: ${detail} → ${bestResponse.chineseNotation}`);
+      console.log(`   优先级: ${bestResponse.priority}, ${bestResponse.description}`);
+      return match;
+    } else {
+      console.log(`❌ 开局走法不可用: ${bestResponse.chineseNotation}`);
+      // 尝试其他应对
+      const allResponses = openingBook.getAllResponses(opening);
+      for (const response of allResponses) {
+        const altMatch = moves.find(
+          (m) =>
+            m.from.row === response.from[0] &&
+            m.from.col === response.from[1] &&
+            m.to.row === response.to[0] &&
+            m.to.col === response.to[1]
+        );
+        if (altMatch) {
+          console.log(`   使用备选: ${response.chineseNotation}`);
+          return altMatch;
+        }
+      }
+    }
+  }
+
+  console.log(`局库没有匹配，使用AI计算`);
+  return null;
+}, [getAllMoves]);
 
   // 获取最佳 AI 走法
   const getMasterAIMove = useCallback((board: (Piece | null)[][]) => {
@@ -736,7 +807,7 @@ const ChineseChess: React.FC = () => {
       console.log("使用开局应对策略");
       return responseMove;
     }
-
+    console.log("使用AI策略");
     let bestMove: Move | null = null;
     let bestScore = -Infinity;
 
@@ -777,7 +848,7 @@ const ChineseChess: React.FC = () => {
     }
 
     return bestMove;
-  }, [getAllMoves, orderMoves, isCheck, minimax, pieceValue]);
+  }, [getOpeningResponse, orderMoves, getAllMoves, minimax, isCheck, pieceValue]);
 
   const executeMove = useCallback((fromRow: number, fromCol: number, toRow: number, toCol: number): boolean => {
     if (gameOver) return false;
