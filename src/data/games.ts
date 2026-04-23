@@ -1,6 +1,7 @@
 import type { GameInfo } from '../types/game.types';
 import brickBreakerThumbnail from '../assets/BrickBreaker2D.png';
 import chineseChessThumbnail from '../assets/ChineseChess.png';
+import sokobanThumbnail from '../assets/Sokoban.png';
 export const games: GameInfo[] = [
   {
     id: 'brick-breaker',
@@ -13,6 +14,12 @@ export const games: GameInfo[] = [
     name: '中国象棋',
     thumbnail: chineseChessThumbnail,
     route: '/game/chinese-chess'
+  },
+  {
+    id: 'sokoban',
+    name: '推箱子',
+    thumbnail: sokobanThumbnail,
+    route: '/game/sokoban'
   }
 ];
 

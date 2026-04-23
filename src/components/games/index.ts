@@ -5,6 +5,7 @@ import { lazy } from 'react';
 export const gameComponents: Record<string, React.LazyExoticComponent<React.ComponentType<any>>> = {
   'brick-breaker': lazy(() => import('./BrickBreaker/BrickBreaker2D')),
   'chinese-chess': lazy(() => import('./ChineseChess/ChineseChess')),
+  'sokoban': lazy(() => import('./Sokoban/Sokoban')),
 };
 
 // 根据游戏ID获取对应的游戏组件
