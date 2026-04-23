@@ -73,8 +73,6 @@ const ChineseChess: React.FC = () => {
   const transpositionTable = useRef<Map<string, { depth: number; score: number }>>(new Map());
   const killerMoves = useRef<Map<number, Move[]>>(new Map());
   const historyTable = useRef<Map<string, number>>(new Map());
-  const quiescenceSearchRef = useRef<((board: (Piece | null)[][], alpha: number, beta: number, isMaximizing: boolean) => number) | null>(null);
-  const minimaxRef = useRef<((board: (Piece | null)[][], depth: number, alpha: number, beta: number, isMaximizing: boolean) => number) | null>(null);
 
   // Game state
   const [currentTurn, setCurrentTurn] = useState<'r' | 'b'>('r');
@@ -83,7 +81,6 @@ const ChineseChess: React.FC = () => {
   const [selectedPiece, setSelectedPiece] = useState<{ row: number; col: number; piece: Piece } | null>(null);
   const [gameBoard, setGameBoard] = useState<(Piece | null)[][]>(() => copyBoard(initBoard()));
   const [validMoves, setValidMoves] = useState<{ row: number; col: number }[]>([]);
-  const [isAiThinking, setIsAiThinking] = useState(false);
 
   const BOARD_WIDTH = (BOARD_COLS - 1) * CELL_SIZE;
   const BOARD_HEIGHT = (BOARD_ROWS - 1) * CELL_SIZE;
@@ -296,7 +293,6 @@ const ChineseChess: React.FC = () => {
     return true;
   }, []);
 
-
   const isSquareAttacked = useCallback((board: (Piece | null)[][], row: number, col: number, color: 'r' | 'b') => {
     for (let i = 0; i < BOARD_ROWS; i++) {
       for (let j = 0; j < BOARD_COLS; j++) {
@@ -369,7 +365,6 @@ const ChineseChess: React.FC = () => {
     return moves;
   }, [canMove]);
 
-
   // 局面哈希
   const boardHash = useCallback((board: (Piece | null)[][]) => {
     let hash = '';
@@ -394,7 +389,6 @@ const ChineseChess: React.FC = () => {
 
         let value = pieceValue[p.type] || 0;
 
-        // 位置加成
         if (p.type === 'pawn') {
           value += p.color === 'b' ? pawnPositionBlack[i][j] : pawnPositionRed[i][j];
           const crossed = p.color === 'r' ? i <= 4 : i >= 5;
@@ -412,12 +406,10 @@ const ChineseChess: React.FC = () => {
       }
     }
 
-    // Mobility 加成
     const mobilityB = getAllMoves(board, 'b').length;
     const mobilityR = getAllMoves(board, 'r').length;
     score += (mobilityB - mobilityR) * 2;
 
-    // 将的安全
     const redKing = findKing(board, 'r');
     const blackKing = findKing(board, 'b');
     if (redKing && isSquareAttacked(board, redKing[0], redKing[1], 'r')) score += 150;
@@ -426,8 +418,6 @@ const ChineseChess: React.FC = () => {
     return score;
   }, [pieceValue, pawnPositionBlack, pawnPositionRed, knightPosition, cannonPosition, rookPosition, getAllMoves, isSquareAttacked]);
 
-
-
   // 检查是否将军
   const isCheck = useCallback((board: (Piece | null)[][], color: 'r' | 'b') => {
     const kingPos = findKing(board, color);
@@ -435,13 +425,12 @@ const ChineseChess: React.FC = () => {
     return isSquareAttacked(board, kingPos[0], kingPos[1], color);
   }, [isSquareAttacked]);
 
-  // 启发式排序（增强版）
+  // 启发式排序
   const orderMoves = useCallback((moves: Move[], board: (Piece | null)[][], color: 'r' | 'b', depth: number = 0) => {
     return moves.sort((a, b) => {
       const targetA = board[a.to.row][a.to.col];
       const targetB = board[b.to.row][b.to.col];
 
-      // MVV-LVA 吃子评分
       let scoreA = 0, scoreB = 0;
       if (targetA && targetA.color !== color) {
         scoreA = (pieceValue[targetA.type] || 0) * 10 - (pieceValue[a.piece.type] || 0);
@@ -450,14 +439,12 @@ const ChineseChess: React.FC = () => {
         scoreB = (pieceValue[targetB.type] || 0) * 10 - (pieceValue[b.piece.type] || 0);
       }
 
-      // Killer move 加成
       const killers = killerMoves.current.get(depth) || [];
       const isKillerA = killers.some(k => k.from.row === a.from.row && k.from.col === a.from.col && k.to.row === a.to.row && k.to.col === a.to.col);
       const isKillerB = killers.some(k => k.from.row === b.from.row && k.from.col === b.from.col && k.to.row === b.to.row && k.to.col === b.to.col);
       if (isKillerA) scoreA += 5000;
       if (isKillerB) scoreB += 5000;
 
-      // History heuristic
       const historyA = historyTable.current.get(`${a.from.row},${a.from.col}`) || 0;
       const historyB = historyTable.current.get(`${b.from.row},${b.from.col}`) || 0;
       scoreA += historyA;
@@ -467,26 +454,28 @@ const ChineseChess: React.FC = () => {
     });
   }, [pieceValue]);
 
-  // 静止搜索（修复版）
-  const quiescenceSearch = useCallback((
+  // 静止搜索
+  const quiescenceSearch = useCallback(function quiescenceSearch(
     board: (Piece | null)[][],
     alpha: number,
     beta: number,
     isMaximizing: boolean
-  ): number => {
+  ): number {
     const standPat = evaluateBoardAdvanced(board);
+    const currentEval = typeof standPat === 'number' && !isNaN(standPat) ? standPat : 0;
 
     if (isMaximizing) {
-      if (standPat >= beta) return beta;
-      if (standPat > alpha) alpha = standPat;
+      if (currentEval >= beta) return beta;
     } else {
-      if (standPat <= alpha) return alpha;
-      if (standPat < beta) beta = standPat;
+      if (currentEval <= alpha) return alpha;
     }
 
     const color = isMaximizing ? 'b' : 'r';
     let moves = getAllMoves(board, color).filter(m => board[m.to.row][m.to.col] !== null);
     moves = orderMoves(moves, board, color, 0);
+
+    let newAlpha = alpha;
+    let newBeta = beta;
 
     for (const move of moves.slice(0, 8)) {
       const newBoard = copyBoard(board);
@@ -494,28 +483,29 @@ const ChineseChess: React.FC = () => {
       newBoard[move.to.row][move.to.col] = piece;
       newBoard[move.from.row][move.from.col] = null;
 
-      const score = quiescenceSearchRef.current?.(newBoard, alpha, beta, !isMaximizing) ?? 0;
+      const score = quiescenceSearch(newBoard, newAlpha, newBeta, !isMaximizing);
+      const validScore = typeof score === 'number' && !isNaN(score) ? score : currentEval;
 
       if (isMaximizing) {
-        if (score >= beta) return beta;
-        if (score > alpha) alpha = score;
+        if (validScore >= newBeta) return newBeta;
+        if (validScore > newAlpha) newAlpha = validScore;
       } else {
-        if (score <= alpha) return alpha;
-        if (score < beta) beta = score;
+        if (validScore <= newAlpha) return newAlpha;
+        if (validScore < newBeta) newBeta = validScore;
       }
     }
 
-    return alpha;
+    return isMaximizing ? newAlpha : newBeta;
   }, [evaluateBoardAdvanced, getAllMoves, orderMoves]);
 
   // Minimax + Alpha-Beta + TT
-  const minimax = useCallback((
+  const minimax = useCallback(function minimax(
     board: (Piece | null)[][],
     depth: number,
     alpha: number,
     beta: number,
     isMaximizing: boolean
-  ): number => {
+  ): number {
     const hash = boardHash(board);
     const ttEntry = transpositionTable.current.get(hash);
 
@@ -524,14 +514,14 @@ const ChineseChess: React.FC = () => {
     }
 
     if (depth === 0) {
-      return quiescenceSearchRef.current?.(board, alpha, beta, isMaximizing) ?? 0;
+      return quiescenceSearch(board, alpha, beta, isMaximizing);
     }
 
     const color = isMaximizing ? 'b' : 'r';
     let moves = getAllMoves(board, color);
 
     if (moves.length === 0) {
-      return isMaximizing ? -99999 : 99999;
+      return isMaximizing ? -100000 : 100000;
     }
 
     moves = orderMoves(moves, board, color, depth);
@@ -544,25 +534,26 @@ const ChineseChess: React.FC = () => {
         newBoard[move.to.row][move.to.col] = piece;
         newBoard[move.from.row][move.from.col] = null;
 
-        const evalScore = minimaxRef.current?.(newBoard, depth - 1, alpha, beta, false) ?? 0;
-        maxEval = Math.max(maxEval, evalScore);
-        alpha = Math.max(alpha, evalScore);
+        const evalScore = minimax(newBoard, depth - 1, alpha, beta, false);
+        const validScore = typeof evalScore === 'number' && !isNaN(evalScore) ? evalScore : -100000;
+
+        maxEval = Math.max(maxEval, validScore);
+        alpha = Math.max(alpha, validScore);
 
         if (beta <= alpha) {
-          // 保存 Killer move
           const killers = killerMoves.current.get(depth) || [];
           if (!killers.some(k => k.from.row === move.from.row && k.to.row === move.to.row)) {
             killers.push(move);
             killerMoves.current.set(depth, killers.slice(0, 2));
           }
-          // 更新 History heuristic
           const key = `${move.from.row},${move.from.col}`;
           historyTable.current.set(key, (historyTable.current.get(key) || 0) + depth * depth);
           break;
         }
       }
-      transpositionTable.current.set(hash, { depth, score: maxEval });
-      return maxEval;
+      const finalScore = typeof maxEval === 'number' && !isNaN(maxEval) ? maxEval : 0;
+      transpositionTable.current.set(hash, { depth, score: finalScore });
+      return finalScore;
     } else {
       let minEval = Infinity;
       for (const move of moves) {
@@ -571,9 +562,11 @@ const ChineseChess: React.FC = () => {
         newBoard[move.to.row][move.to.col] = piece;
         newBoard[move.from.row][move.from.col] = null;
 
-        const evalScore = minimaxRef.current?.(newBoard, depth - 1, alpha, beta, true) ?? 0;
-        minEval = Math.min(minEval, evalScore);
-        beta = Math.min(beta, evalScore);
+        const evalScore = minimax(newBoard, depth - 1, alpha, beta, true);
+        const validScore = typeof evalScore === 'number' && !isNaN(evalScore) ? evalScore : 100000;
+
+        minEval = Math.min(minEval, validScore);
+        beta = Math.min(beta, validScore);
 
         if (beta <= alpha) {
           const killers = killerMoves.current.get(depth) || [];
@@ -586,28 +579,175 @@ const ChineseChess: React.FC = () => {
           break;
         }
       }
-      transpositionTable.current.set(hash, { depth, score: minEval });
-      return minEval;
+      const finalScore = typeof minEval === 'number' && !isNaN(minEval) ? minEval : 0;
+      transpositionTable.current.set(hash, { depth, score: finalScore });
+      return finalScore;
     }
-  }, [boardHash, getAllMoves, orderMoves]);
+  }, [boardHash, getAllMoves, orderMoves, quiescenceSearch]);
 
-  // 更新 refs
-  useEffect(() => {
-    quiescenceSearchRef.current = quiescenceSearch;
-    minimaxRef.current = minimax;
-  }, [quiescenceSearch, minimax]);
 
-  // 迭代加深获取最佳 AI 走法
+  const getOpeningMove = (board: (Piece | null)[][]) => {
+    // 默认
+    let opening = "unknown";
+    let detail = "";
+
+    // === 中炮 ===
+    const redCenterCannon =
+      (board[7][3]?.type === "cannon" && board[7][3]?.color === "r") ||
+      (board[7][5]?.type === "cannon" && board[7][5]?.color === "r");
+
+    if (redCenterCannon && board[6][4]?.type !== "king") {
+      opening = "center_cannon";
+      detail = "中炮体系";
+    }
+
+    // === 仙人指路（只看兵推进，不用 or）===
+    const pawnPush =
+      [0, 2, 4, 6, 8].some((j) => board[6][j] === null);
+
+    if (pawnPush && opening === "unknown") {
+      opening = "pawn_advance";
+      detail = "仙人指路";
+    }
+
+    // === 飞象（结构判断）===
+    if (
+      (board[9][2]?.type === "bishop" && board[7][4]?.type === "bishop") ||
+      (board[9][6]?.type === "bishop" && board[7][4]?.type === "bishop")
+    ) {
+      if (opening === "unknown") {
+        opening = "elephant";
+        detail = "飞象局";
+      }
+    }
+
+    // === 起马 ===
+    if (
+      (board[9][1]?.type === "knight" && board[7][2]?.type === "knight") ||
+      (board[9][7]?.type === "knight" && board[7][6]?.type === "knight")
+    ) {
+      if (opening === "unknown") {
+        opening = "horse_opening";
+        detail = "起马局";
+      }
+    }
+
+    return { opening, detail };
+  };
+
+  const getOpeningResponse = useCallback((board: (Piece | null)[][]) => {
+    const moves = getAllMoves(board, "b");
+
+    const { opening, detail } = getOpeningMove(board);
+
+    // === 候选池（评分系统）===
+    const candidates: {
+      from: [number, number];
+      to: [number, number];
+      score: number;
+    }[] = [];
+
+    const add = (from: [number, number], to: [number, number], score: number) => {
+      candidates.push({ from, to, score });
+    };
+
+    // =========================
+    // 1. 中炮应对（稳定版）
+    // =========================
+    if (opening === "center_cannon") {
+      add([0, 7], [2, 6], 100); // 马八进七
+      add([0, 1], [2, 2], 100); // 马二进三
+      add([2, 7], [3, 5], 95);  // 炮八平五
+      add([2, 1], [3, 3], 95);
+      add([3, 6], [4, 6], 90);  // 卒
+    }
+
+    // =========================
+    // 2. 仙人指路
+    // =========================
+    if (opening === "pawn_advance") {
+      add([2, 7], [3, 5], 100);
+      add([2, 1], [3, 3], 95);
+      add([0, 7], [2, 6], 90);
+      add([3, 6], [4, 6], 85);
+    }
+
+    // =========================
+    // 3. 飞象局
+    // =========================
+    if (opening === "elephant") {
+      add([2, 7], [3, 5], 100);
+      add([0, 7], [2, 6], 95);
+      add([0, 1], [2, 2], 95);
+    }
+
+    // =========================
+    // 4. 起马局
+    // =========================
+    if (opening === "horse_opening") {
+      add([2, 7], [3, 5], 95);
+      add([0, 7], [2, 6], 90);
+      add([3, 6], [4, 6], 85);
+    }
+
+    // =========================
+    // 5. 通用兜底（关键修复点）
+    // =========================
+    if (opening === "unknown") {
+      add([0, 7], [2, 6], 80);
+      add([0, 1], [2, 2], 80);
+      add([2, 7], [3, 5], 75);
+    }
+
+    // =========================
+    // 选择最佳 move（关键修复）
+    // =========================
+    let bestMove = null;
+    let bestScore = -Infinity;
+
+    for (const c of candidates) {
+      const match = moves.find(
+        (m) =>
+          m.from.row === c.from[0] &&
+          m.from.col === c.from[1] &&
+          m.to.row === c.to[0] &&
+          m.to.col === c.to[1]
+      );
+
+      if (match && c.score > bestScore) {
+        bestScore = c.score;
+        bestMove = match;
+      }
+    }
+
+    if (bestMove) {
+      console.log(`开局应对: ${detail || opening}, score=${bestScore}`);
+      return bestMove;
+    }
+
+    return null;
+  }, [getAllMoves]);
+
+  // 获取最佳 AI 走法
   const getMasterAIMove = useCallback((board: (Piece | null)[][]) => {
+    // ========== 第一优先级：开局应对策略 ==========
+    const responseMove = getOpeningResponse(board);
+    if (responseMove) {
+      console.log("使用开局应对策略");
+      return responseMove;
+    }
+
     let bestMove: Move | null = null;
     let bestScore = -Infinity;
 
-    // 清空每步的临时表（保留 killer 和 history）
     transpositionTable.current.clear();
 
-    const maxDepth = 2; // 稳定深度 3，兼顾速度和棋力
-
+    const maxDepth = 3;
     const moves = orderMoves(getAllMoves(board, 'b'), board, 'b', 0);
+
+    if (moves.length === 0) {
+      return null;
+    }
 
     for (const move of moves) {
       const newBoard = copyBoard(board);
@@ -615,12 +755,19 @@ const ChineseChess: React.FC = () => {
       newBoard[move.to.row][move.to.col] = piece;
       newBoard[move.from.row][move.from.col] = null;
 
-      // 直接吃子加分
-      let score = minimaxRef.current?.(newBoard, maxDepth - 1, -Infinity, Infinity, false) ?? 0;
+      let score = minimax(newBoard, maxDepth - 1, -Infinity, Infinity, false);
 
-      // 将军加分
+      if (typeof score !== 'number' || isNaN(score)) {
+        score = 0;
+      }
+
       if (isCheck(newBoard, 'r')) {
         score += 500;
+      }
+
+      const target = board[move.to.row][move.to.col];
+      if (target) {
+        score += (pieceValue[target.type] || 0) * 0.5;
       }
 
       if (score > bestScore) {
@@ -629,10 +776,8 @@ const ChineseChess: React.FC = () => {
       }
     }
 
-    console.log(`AI 选择走法: 分数=${bestScore}`);
     return bestMove;
-  }, [getAllMoves, orderMoves, isCheck]);
-
+  }, [getAllMoves, orderMoves, isCheck, minimax, pieceValue]);
 
   const executeMove = useCallback((fromRow: number, fromCol: number, toRow: number, toCol: number): boolean => {
     if (gameOver) return false;
@@ -674,61 +819,51 @@ const ChineseChess: React.FC = () => {
   // AI 移动
   useEffect(() => {
     if (currentTurn === 'b' && !gameOver && !isAiMovingRef.current) {
-      const makeAIMove = async () => {
-        isAiMovingRef.current = true;
-        setIsAiThinking(true);
+      isAiMovingRef.current = true;
 
-        await new Promise(r => setTimeout(r, 50));
-
-        setGameBoard(prevBoard => {
-          const allMoves = getAllMoves(prevBoard, 'b');
-          if (allMoves.length === 0) {
-            console.log('黑方无步可走，红方胜利！');
-            setGameOver(true);
-            setWinner('r');
-            setCurrentTurn('r');
-            setIsAiThinking(false);
-            isAiMovingRef.current = false;
-            return prevBoard;
-          }
-
-          const move = getMasterAIMove(prevBoard);
-          if (!move) {
-            setIsAiThinking(false);
-            isAiMovingRef.current = false;
-            return prevBoard;
-          }
-
-          const newBoard = copyBoard(prevBoard);
-          const captured = newBoard[move.to.row][move.to.col];
-          const piece = newBoard[move.from.row][move.from.col];
-
-          if (!piece) {
-            setIsAiThinking(false);
-            isAiMovingRef.current = false;
-            return prevBoard;
-          }
-
-          newBoard[move.to.row][move.to.col] = piece;
-          newBoard[move.from.row][move.from.col] = null;
-
-          if (captured && captured.type === 'king') {
-            setGameOver(true);
-            setWinner('b');
-          }
-
+      // 使用 setTimeout 让 UI 有机会更新
+      setTimeout(() => {
+        const allMoves = getAllMoves(gameBoard, 'b');
+        if (allMoves.length === 0) {
+          console.log('黑方无步可走，红方胜利！');
+          setGameOver(true);
+          setWinner('r');
           setCurrentTurn('r');
-          setValidMoves([]);
-          setSelectedPiece(null);
-          setIsAiThinking(false);
           isAiMovingRef.current = false;
-          return newBoard;
-        });
-      };
+          return;
+        }
 
-      makeAIMove();
+        const move = getMasterAIMove(gameBoard);
+        if (!move) {
+          isAiMovingRef.current = false;
+          return;
+        }
+
+        const newBoard = copyBoard(gameBoard);
+        const captured = newBoard[move.to.row][move.to.col];
+        const piece = newBoard[move.from.row][move.from.col];
+
+        if (!piece) {
+          isAiMovingRef.current = false;
+          return;
+        }
+
+        newBoard[move.to.row][move.to.col] = piece;
+        newBoard[move.from.row][move.from.col] = null;
+
+        if (captured && captured.type === 'king') {
+          setGameOver(true);
+          setWinner('b');
+        }
+
+        setGameBoard(newBoard);
+        setCurrentTurn('r');
+        setValidMoves([]);
+        setSelectedPiece(null);
+        isAiMovingRef.current = false;
+      }, 10);
     }
-  }, [currentTurn, gameOver, getMasterAIMove, getAllMoves]);
+  }, [currentTurn, gameOver, getAllMoves, getMasterAIMove, gameBoard]);
 
   const resetGame = useCallback(() => {
     setGameBoard(copyBoard(initBoard()));
@@ -738,7 +873,6 @@ const ChineseChess: React.FC = () => {
     setGameOver(false);
     setWinner(null);
     isAiMovingRef.current = false;
-    setIsAiThinking(false);
     transpositionTable.current.clear();
     killerMoves.current.clear();
     historyTable.current.clear();
@@ -1038,7 +1172,7 @@ const ChineseChess: React.FC = () => {
         <div className="chess-header">
           <div className="chess-stats">
             <div className="chess-turn">
-              {gameOver ? (winner === 'r' ? "🏆 红方胜利！🏆" : "🏆 黑方AI胜利！🏆") : (currentTurn === 'r' ? "🔴 红方走子" : (isAiThinking ? "🤔 AI 深度思考中..." : "⚫ AI 黑方回合"))}
+              {gameOver ? (winner === 'r' ? "🏆 红方胜利！🏆" : "🏆 黑方AI胜利！🏆") : (currentTurn === 'r' ? "🔴 红方走子" : "🤔 AI 深度思考中...")}
             </div>
             <div className="chess-status">
               {currentTurn === 'r' ? "🐉 红方执帅 · 挑战AI" : "🤖 大师级AI · 深度搜索"}
@@ -1058,7 +1192,7 @@ const ChineseChess: React.FC = () => {
           />
         </div>
         <div className="chess-footer">
-           <div className="chess-instructions">🧠 红方(你) vs 大师级AI | 点击棋子 + 落子 | AI 智能选择最优走法</div>
+           <div className="chess-instructions">🧠 红方(你) vs AI | 点击棋子 + 落子 | AI 智能选择最优走法</div>
         </div>
       </div>
     </div>
