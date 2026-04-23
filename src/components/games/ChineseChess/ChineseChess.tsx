@@ -344,6 +344,7 @@ const ChineseChess: React.FC = () => {
         }
       }
     }
+
     return moves;
   }, [canMove]);
 
@@ -1076,74 +1077,93 @@ const getOpeningResponse = useCallback((board: (Piece | null)[][]) => {
     ctx.fill();
   }, [getX, getY, WIDTH, HEIGHT]);
 
-  const drawPieces = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+const drawPieces = useCallback(() => {
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
 
-    if (validMoves.length > 0 && selectedPiece) {
-      for (const move of validMoves) {
-        const x = getX(move.col);
-        const y = getY(move.row);
+  // 1. 先绘制所有棋子
+  for (let i = 0; i < BOARD_ROWS; i++) {
+    for (let j = 0; j < BOARD_COLS; j++) {
+      const p = gameBoard[i][j];
+      if (!p) continue;
+
+      const x = getX(j);
+      const y = getY(i);
+
+      ctx.shadowBlur = 3;
+      ctx.shadowColor = "rgba(0,0,0,0.3)";
+
+      const grad = ctx.createRadialGradient(x - 6, y - 6, 5, x, y, radius);
+      grad.addColorStop(0, p.color === 'r' ? '#e33c3c' : '#4a4a4a');
+      grad.addColorStop(1, p.color === 'r' ? '#a12222' : '#2a2a2a');
+
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.strokeStyle = p.color === 'r' ? "#ffcc88" : "#dddddd";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.font = `bold ${radius - 6}px "KaiTi"`;
+      ctx.fillStyle = p.color === 'r' ? "#fff5cc" : "#f0f0f0";
+      ctx.shadowBlur = 1;
+      ctx.fillText(getPieceSymbol(p), x - 12, y + 9);
+
+      ctx.beginPath();
+      ctx.arc(x - 5, y - 5, 4, 0, 2 * Math.PI);
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.fill();
+    }
+  }
+  ctx.shadowBlur = 0;
+
+  // 2. 绘制选中的棋子高亮（在棋子上面）
+  if (selectedPiece) {
+    const x = getX(selectedPiece.col);
+    const y = getY(selectedPiece.row);
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 4, 0, 2 * Math.PI);
+    ctx.strokeStyle = "#ffff00";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // 3. 最后绘制移动标记（在最上层，不会被棋子遮挡）
+  if (validMoves.length > 0 && selectedPiece) {
+    for (const move of validMoves) {
+      const x = getX(move.col);
+      const y = getY(move.row);
+
+      const targetPiece = gameBoard[move.row][move.col];
+      const isCapture = targetPiece !== null && targetPiece.color !== selectedPiece.piece.color;
+
+      if (isCapture) {
         ctx.beginPath();
-        ctx.arc(x, y, radius * 0.4, 0, 2 * Math.PI);
+        ctx.arc(x, y, radius + 2, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.font = `bold ${radius - 14}px "KaiTi"`;
+        ctx.fillStyle = '#ff0000';
+        ctx.fillText("吃", x + 15, y - 12);
+      } else if (!targetPiece) {
+        // 普通移动：绿色圆点
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 0.35, 0, 2 * Math.PI);
         ctx.fillStyle = '#4caf50';
-        ctx.shadowBlur = 0;
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(x, y, radius * 0.6, 0, 2 * Math.PI);
+        ctx.arc(x, y, radius * 0.55, 0, 2 * Math.PI);
         ctx.fillStyle = '#4caf5080';
         ctx.fill();
       }
     }
-
-    for (let i = 0; i < BOARD_ROWS; i++) {
-      for (let j = 0; j < BOARD_COLS; j++) {
-        const p = gameBoard[i][j];
-        if (!p) continue;
-
-        const x = getX(j);
-        const y = getY(i);
-
-        ctx.shadowBlur = 3;
-        ctx.shadowColor = "rgba(0,0,0,0.3)";
-
-        const grad = ctx.createRadialGradient(x - 6, y - 6, 5, x, y, radius);
-        grad.addColorStop(0, p.color === 'r' ? '#e33c3c' : '#4a4a4a');
-        grad.addColorStop(1, p.color === 'r' ? '#a12222' : '#2a2a2a');
-
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, 2 * Math.PI);
-        ctx.fillStyle = grad;
-        ctx.fill();
-        ctx.strokeStyle = p.color === 'r' ? "#ffcc88" : "#dddddd";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        ctx.font = `bold ${radius - 6}px "KaiTi"`;
-        ctx.fillStyle = p.color === 'r' ? "#fff5cc" : "#f0f0f0";
-        ctx.shadowBlur = 1;
-        ctx.fillText(getPieceSymbol(p), x - 12, y + 9);
-
-        ctx.beginPath();
-        ctx.arc(x - 5, y - 5, 4, 0, 2 * Math.PI);
-        ctx.fillStyle = "rgba(255,255,255,0.15)";
-        ctx.fill();
-      }
-    }
-    ctx.shadowBlur = 0;
-
-    if (selectedPiece) {
-      const x = getX(selectedPiece.col);
-      const y = getY(selectedPiece.row);
-      ctx.beginPath();
-      ctx.arc(x, y, radius + 4, 0, 2 * Math.PI);
-      ctx.strokeStyle = "#ffff00";
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
-  }, [gameBoard, getPieceSymbol, selectedPiece, getX, getY, validMoves]);
+  }
+}, [gameBoard, getPieceSymbol, selectedPiece, getX, getY, validMoves, radius]);
 
   const drawFullBoard = useCallback(() => {
     drawBoard();
