@@ -2,18 +2,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import './BrickBreaker2D.css';
 
-interface GameState {
-  score: number;
-  lives: number;
-  gameRunning: boolean;
-  gameOver: boolean;
-  gameWin: boolean;
-  currentLevel: number;
-}
-
-interface BrickBreaker2DProps {
-  onGameStateChange?: (state: GameState) => void;
-}
 
 interface Particle {
   id: number;
@@ -102,8 +90,7 @@ interface SavedGameState {
   // 保存时间戳
   savedAt: number;
 }
-
-const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onGameStateChange }) => {
+const BrickBreaker2D: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationIdRef = useRef<number>(0);
   const mountedRef = useRef(true);
@@ -879,12 +866,6 @@ const BrickBreaker2D: React.FC<BrickBreaker2DProps> = ({ onGameStateChange }) =>
     };
   }, [WIDTH]);
 
-  // 通知父组件状态变化
-  useEffect(() => {
-    if (onGameStateChange) {
-      onGameStateChange({ score, lives, gameRunning, gameOver, gameWin, currentLevel });
-    }
-  }, [score, lives, gameRunning, gameOver, gameWin, currentLevel, onGameStateChange]);
 
   // 初始化游戏
   useEffect(() => {

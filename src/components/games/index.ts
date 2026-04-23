@@ -4,6 +4,7 @@ import { lazy } from 'react';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const gameComponents: Record<string, React.LazyExoticComponent<React.ComponentType<any>>> = {
   'brick-breaker': lazy(() => import('./BrickBreaker/BrickBreaker2D')),
+  'chinese-chess': lazy(() => import('./ChineseChess/ChineseChess')),
 };
 
 // 根据游戏ID获取对应的游戏组件
