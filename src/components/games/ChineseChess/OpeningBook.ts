@@ -1,6 +1,6 @@
 // OpeningBook.ts
+import openingBookJson from './openingBook.json';
 
-// 定义 Piece 接口（与 ChineseChess.tsx 中保持一致）
 interface Piece {
   type: string;
   color: 'r' | 'b';
@@ -10,346 +10,255 @@ interface OpeningBookMove {
   from: [number, number];
   to: [number, number];
   chineseNotation: string;
-  priority: number; // 0-100
+  priority: number;
   description: string;
+  moveNumber: number;
+}
+
+// 宽松的 nextResponses 类型 - 使用 Record<string, unknown> 然后转换
+interface RawNextResponse {
+  moveNumber: number;
+  from: number[];
+  to: number[];
+  notation: string;
+  priority: number;
+  description: string;
+  nextResponses?: Record<string, RawNextResponse>;
+}
+
+
+
+// 转换后的类型
+interface NextResponse {
+  moveNumber: number;
+  from: [number, number];
+  to: [number, number];
+  notation: string;
+  priority: number;
+  description: string;
+  nextResponses?: Record<string, NextResponse>;
+}
+
+interface OpeningResponse {
+  moveNumber: number;
+  from: [number, number];
+  to: [number, number];
+  notation: string;
+  priority: number;
+  description: string;
+  nextResponses?: Record<string, NextResponse>;
+}
+
+interface OpeningData {
+  name: string;
+  firstMove: {
+    from: [number, number];
+    to: [number, number];
+    notation: string;
+  };
+  responses: OpeningResponse[];
+}
+
+function toTuple(pair: number[]): [number, number] {
+  return [pair[0], pair[1]];
+}
+
+// 类型守卫：检查对象是否是有效的 RawNextResponse
+function isRawNextResponse(obj: unknown): obj is RawNextResponse {
+  if (!obj || typeof obj !== 'object') return false;
+  const candidate = obj as Record<string, unknown>;
+  return typeof candidate.moveNumber === 'number' &&
+         Array.isArray(candidate.from) &&
+         Array.isArray(candidate.to) &&
+         typeof candidate.notation === 'string' &&
+         typeof candidate.priority === 'number' &&
+         typeof candidate.description === 'string';
 }
 
 class OpeningBook {
-  private book: Map<string, OpeningBookMove[]> = new Map();
-  private maxOpeningMoves: number = 12; // 前12步使用开局库
+  private book: Map<string, OpeningData> = new Map();
+  private maxOpeningMoves: number = 4;
+  private lastRedMove: string = '';
 
   constructor() {
-    this.loadAllOpenings();
+    this.loadFromJson();
   }
 
-  // 设置最多使用多少步开局库（默认12步=6回合）
+  private loadFromJson() {
+    // 使用类型断言，因为 JSON 结构是正确的
+    const jsonData = openingBookJson as {
+      maxOpeningMoves: number;
+      openings: Record<string, {
+        name: string;
+        firstMove: { from: number[]; to: number[]; notation: string };
+        responses: Array<{
+          moveNumber: number;
+          from: number[];
+          to: number[];
+          notation: string;
+          priority: number;
+          description: string;
+          nextResponses?: Record<string, unknown>;
+        }>;
+      }>;
+    };
+
+    this.maxOpeningMoves = jsonData.maxOpeningMoves;
+
+    for (const [key, value] of Object.entries(jsonData.openings)) {
+      // 转换 firstMove
+      const convertedFirstMove = {
+        from: toTuple(value.firstMove.from),
+        to: toTuple(value.firstMove.to),
+        notation: value.firstMove.notation
+      };
+
+      // 转换 responses
+      const convertedResponses: OpeningResponse[] = value.responses.map((response) => {
+        const converted: OpeningResponse = {
+          moveNumber: response.moveNumber,
+          from: toTuple(response.from),
+          to: toTuple(response.to),
+          notation: response.notation,
+          priority: response.priority,
+          description: response.description
+        };
+
+        // 转换 nextResponses
+        if (response.nextResponses) {
+          converted.nextResponses = {};
+          for (const [moveKey, moveValue] of Object.entries(response.nextResponses)) {
+            if (isRawNextResponse(moveValue)) {
+              converted.nextResponses[moveKey] = {
+                moveNumber: moveValue.moveNumber,
+                from: toTuple(moveValue.from),
+                to: toTuple(moveValue.to),
+                notation: moveValue.notation,
+                priority: moveValue.priority,
+                description: moveValue.description,
+                nextResponses: moveValue.nextResponses
+                  ? this.convertNextResponses(moveValue.nextResponses)
+                  : undefined
+              };
+            }
+          }
+        }
+
+        return converted;
+      });
+
+      this.book.set(key, {
+        name: value.name,
+        firstMove: convertedFirstMove,
+        responses: convertedResponses
+      });
+    }
+
+    console.log(`开局库加载完成，共 ${this.book.size} 个开局类型`);
+  }
+
+  private convertNextResponses(responses: Record<string, RawNextResponse>): Record<string, NextResponse> {
+    const converted: Record<string, NextResponse> = {};
+    for (const [moveKey, moveValue] of Object.entries(responses)) {
+      converted[moveKey] = {
+        moveNumber: moveValue.moveNumber,
+        from: toTuple(moveValue.from),
+        to: toTuple(moveValue.to),
+        notation: moveValue.notation,
+        priority: moveValue.priority,
+        description: moveValue.description,
+        nextResponses: moveValue.nextResponses
+          ? this.convertNextResponses(moveValue.nextResponses)
+          : undefined
+      };
+    }
+    return converted;
+  }
+
   setMaxOpeningMoves(moves: number) {
     this.maxOpeningMoves = moves;
   }
 
-  // 加载所有开局变例
-  private loadAllOpenings() {
-    // ==========================================
-    // 1. 应对中炮（炮二平五 或 炮八平五）
-    // ==========================================
-
-    // 1.1 屏风马（最主流，优先级最高）
-    this.addResponse("center_cannon", {
-      from: [0, 7], to: [2, 6],
-      chineseNotation: "马8进7",
-      priority: 100,
-      description: "屏风马 - 最稳健的应法"
-    });
-
-    this.addResponse("center_cannon", {
-      from: [0, 1], to: [2, 2],
-      chineseNotation: "马2进3",
-      priority: 98,
-      description: "跳马 - 对称出子"
-    });
-
-    // 1.2 顺炮（对攻激烈）
-    this.addResponse("center_cannon", {
-      from: [2, 7], to: [3, 5],
-      chineseNotation: "炮8平5",
-      priority: 85,
-      description: "顺炮 - 对攻激烈"
-    });
-
-    // 1.3 列炮
-    this.addResponse("center_cannon", {
-      from: [2, 1], to: [3, 3],
-      chineseNotation: "炮2平5",
-      priority: 80,
-      description: "列炮 - 针锋相对"
-    });
-
-    // 1.4 起横车
-    this.addResponse("center_cannon", {
-      from: [0, 0], to: [1, 0],
-      chineseNotation: "车9进1",
-      priority: 75,
-      description: "起横车 - 另辟蹊径"
-    });
-
-    // ==========================================
-    // 2. 应对仙人指路（兵三进一 或 兵七进一）
-    // ==========================================
-
-    // 2.1 对兵局
-    this.addResponse("pawn_advance", {
-      from: [3, 6], to: [4, 6],
-      chineseNotation: "卒7进1",
-      priority: 100,
-      description: "对兵局 - 针锋相对"
-    });
-
-    this.addResponse("pawn_advance", {
-      from: [3, 0], to: [4, 0],
-      chineseNotation: "卒3进1",
-      priority: 98,
-      description: "卒3进1 - 对称应法"
-    });
-
-    // 2.2 卒底炮
-    this.addResponse("pawn_advance", {
-      from: [2, 1], to: [3, 3],
-      chineseNotation: "炮2平5",
-      priority: 95,
-      description: "卒底炮 - 还架中炮"
-    });
-
-    this.addResponse("pawn_advance", {
-      from: [2, 7], to: [3, 5],
-      chineseNotation: "炮8平5",
-      priority: 93,
-      description: "卒底炮左架"
-    });
-
-    // 2.3 跳马
-    this.addResponse("pawn_advance", {
-      from: [0, 7], to: [2, 6],
-      chineseNotation: "马8进7",
-      priority: 85,
-      description: "跳马 - 稳步出子"
-    });
-
-    // ==========================================
-    // 3. 应对飞相局（相三进五 或 相七进五）
-    // ==========================================
-
-    // 3.1 左中炮
-    this.addResponse("elephant", {
-      from: [2, 7], to: [3, 5],
-      chineseNotation: "炮8平5",
-      priority: 100,
-      description: "左中炮 - 直接反击"
-    });
-
-    // 3.2 右中炮
-    this.addResponse("elephant", {
-      from: [2, 1], to: [3, 3],
-      chineseNotation: "炮2平5",
-      priority: 95,
-      description: "右中炮"
-    });
-
-    // 3.3 跳马
-    this.addResponse("elephant", {
-      from: [0, 7], to: [2, 6],
-      chineseNotation: "马8进7",
-      priority: 90,
-      description: "跳左马"
-    });
-
-    this.addResponse("elephant", {
-      from: [0, 1], to: [2, 2],
-      chineseNotation: "马2进3",
-      priority: 88,
-      description: "跳右马"
-    });
-
-    // 3.4 进卒
-    this.addResponse("elephant", {
-      from: [3, 6], to: [4, 6],
-      chineseNotation: "卒7进1",
-      priority: 85,
-      description: "进7卒"
-    });
-
-    // ==========================================
-    // 4. 应对起马局（马二进三 或 马八进七）
-    // ==========================================
-
-    // 4.1 中炮
-    this.addResponse("horse_opening", {
-      from: [2, 7], to: [3, 5],
-      chineseNotation: "炮8平5",
-      priority: 100,
-      description: "左中炮反击"
-    });
-
-    this.addResponse("horse_opening", {
-      from: [2, 1], to: [3, 3],
-      chineseNotation: "炮2平5",
-      priority: 95,
-      description: "右中炮"
-    });
-
-    // 4.2 对起马
-    this.addResponse("horse_opening", {
-      from: [0, 7], to: [2, 6],
-      chineseNotation: "马8进7",
-      priority: 90,
-      description: "对称起马"
-    });
-
-    // 4.3 进卒
-    this.addResponse("horse_opening", {
-      from: [3, 6], to: [4, 6],
-      chineseNotation: "卒7进1",
-      priority: 85,
-      description: "活通马路"
-    });
-
-    // ==========================================
-    // 5. 应对过宫炮（炮二平六）
-    // ==========================================
-
-    this.addResponse("palace_cannon", {
-      from: [0, 7], to: [2, 6],
-      chineseNotation: "马8进7",
-      priority: 100,
-      description: "跳左马"
-    });
-
-    this.addResponse("palace_cannon", {
-      from: [2, 1], to: [3, 3],
-      chineseNotation: "炮2平5",
-      priority: 95,
-      description: "还架中炮"
-    });
-
-    // ==========================================
-    // 6. 应对士角炮（炮二平四）
-    // ==========================================
-
-    this.addResponse("corner_cannon", {
-      from: [0, 7], to: [2, 6],
-      chineseNotation: "马8进7",
-      priority: 100,
-      description: "跳左马"
-    });
-
-    this.addResponse("corner_cannon", {
-      from: [2, 7], to: [4, 7],
-      chineseNotation: "炮8平6",
-      priority: 90,
-      description: "顺手炮"
-    });
-
-    // ==========================================
-    // 7. 应对金钩炮（炮二平七）
-    // ==========================================
-
-    this.addResponse("hook_cannon", {
-      from: [0, 7], to: [2, 6],
-      chineseNotation: "马8进7",
-      priority: 100,
-      description: "跳左马"
-    });
-
-    // ==========================================
-    // 8. 应对巡河炮
-    // ==========================================
-
-    this.addResponse("river_cannon", {
-      from: [0, 7], to: [2, 6],
-      chineseNotation: "马8进7",
-      priority: 100,
-      description: "跳马"
-    });
+  recordRedMove(notation: string) {
+    this.lastRedMove = notation;
   }
 
-  // 添加应对走法
-  private addResponse(openingType: string, move: OpeningBookMove) {
-    if (!this.book.has(openingType)) {
-      this.book.set(openingType, []);
-    }
-    this.book.get(openingType)!.push(move);
+  resetHistory() {
+    this.lastRedMove = '';
   }
 
-  // 获取最佳应对（按优先级排序）
-  getBestResponse(openingType: string): OpeningBookMove | null {
-    const responses = this.book.get(openingType);
-    if (!responses || responses.length === 0) return null;
-
-    // 按优先级降序排序，返回最高优先级
-    return [...responses].sort((a, b) => b.priority - a.priority)[0];
-  }
-
-  // 获取所有应对（用于多样性）
-  getAllResponses(openingType: string): OpeningBookMove[] {
-    return this.book.get(openingType) || [];
-  }
-
-  // 随机获取一个应对（增加AI多样性）
-  getRandomResponse(openingType: string): OpeningBookMove | null {
-    const responses = this.book.get(openingType);
-    if (!responses || responses.length === 0) return null;
-    const randomIndex = Math.floor(Math.random() * responses.length);
-    return responses[randomIndex];
-  }
-
-  // 根据优先级权重选择
-  getWeightedResponse(openingType: string): OpeningBookMove | null {
-    const responses = this.book.get(openingType);
-    if (!responses || responses.length === 0) return null;
-
-    // 计算总优先级
-    const totalPriority = responses.reduce((sum, m) => sum + m.priority, 0);
-    let random = Math.random() * totalPriority;
-
-    for (const move of responses) {
-      if (random <= move.priority) return move;
-      random -= move.priority;
-    }
-
-    return responses[0];
-  }
-
-  // 检测红方开局类型
   detectOpening(board: (Piece | null)[][]): string {
-    // 检查中炮
     if (this.isCenterCannon(board)) return "center_cannon";
-
-    // 检查仙人指路
     if (this.isPawnAdvance(board)) return "pawn_advance";
-
-    // 检查飞相局
     if (this.isElephant(board)) return "elephant";
-
-    // 检查起马局
     if (this.isHorseOpening(board)) return "horse_opening";
-
-    // 检查过宫炮
     if (this.isPalaceCannon(board)) return "palace_cannon";
-
-    // 检查士角炮
     if (this.isCornerCannon(board)) return "corner_cannon";
-
-    // 检查金钩炮
     if (this.isHookCannon(board)) return "hook_cannon";
-
-    // 检查巡河炮
-    if (this.isRiverCannon(board)) return "river_cannon";
-
     return "unknown";
   }
 
-  // 中炮检测：红方炮在(7,3)或(7,5)位置，且没有移动过
-  private isCenterCannon(board: (Piece | null)[][]): boolean {
-    // 检查左中炮（炮二平五）：炮从(7,7)移动到(7,5)
-    const leftCannon = board[7][5]?.type === "cannon" && board[7][5]?.color === "r";
-    // 检查右中炮（炮八平五）：炮从(7,1)移动到(7,3)
-    const rightCannon = board[7][3]?.type === "cannon" && board[7][3]?.color === "r";
+  getBestResponse(openingType: string, moveCount: number): OpeningBookMove | null {
+    const openingData = this.book.get(openingType);
+    if (!openingData) return null;
 
-    // 检查原始位置是否已空（说明移动过）
+    if (moveCount === 1) {
+      const bestResponse = [...openingData.responses].sort((a, b) => b.priority - a.priority)[0];
+      return {
+        from: bestResponse.from,
+        to: bestResponse.to,
+        chineseNotation: bestResponse.notation,
+        priority: bestResponse.priority,
+        description: bestResponse.description,
+        moveNumber: bestResponse.moveNumber
+      };
+    }
+
+    if (moveCount === 3 && this.lastRedMove) {
+      for (const response of openingData.responses) {
+        if (response.nextResponses && response.nextResponses[this.lastRedMove]) {
+          const nextResponse = response.nextResponses[this.lastRedMove];
+          return {
+            from: nextResponse.from,
+            to: nextResponse.to,
+            chineseNotation: nextResponse.notation,
+            priority: nextResponse.priority,
+            description: nextResponse.description,
+            moveNumber: nextResponse.moveNumber
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  getOpeningDescription(openingType: string): string {
+    const openingData = this.book.get(openingType);
+    if (openingData) {
+      return `${openingData.name} - 黑方应以开局库应对`;
+    }
+    return "未知开局 - 使用默认出子";
+  }
+
+  shouldUseOpeningBook(moveCount: number): boolean {
+    return moveCount <= this.maxOpeningMoves;
+  }
+
+  // ========== 开局检测方法 ==========
+
+  private isCenterCannon(board: (Piece | null)[][]): boolean {
+    const leftCannon = board[7][5]?.type === "cannon" && board[7][5]?.color === "r";
+    const rightCannon = board[7][3]?.type === "cannon" && board[7][3]?.color === "r";
     const leftOriginal = board[7][7] === null;
     const rightOriginal = board[7][1] === null;
-
     return (leftCannon && leftOriginal) || (rightCannon && rightOriginal);
   }
 
-  // 仙人指路检测：红方兵从(6,0)/(6,2)/(6,4)/(6,6)/(6,8)向前移动了一步
   private isPawnAdvance(board: (Piece | null)[][]): boolean {
-    // 检查红方兵是否从原始位置移动了
     const pawnPositions = [[6, 0], [6, 2], [6, 4], [6, 6], [6, 8]];
-
     for (const [row, col] of pawnPositions) {
-      // 原始位置空了，说明兵移动了
       if (board[row][col] === null) {
-        // 检查兵现在在哪里（向前移动了一格）
         const forwardRow = row - 1;
         if (forwardRow >= 0 && board[forwardRow][col]?.type === "pawn" && board[forwardRow][col]?.color === "r") {
           return true;
@@ -359,85 +268,39 @@ class OpeningBook {
     return false;
   }
 
-  // 飞相局检测：红方相从(9,2)或(9,6)移动到(7,4)（飞中相）
   private isElephant(board: (Piece | null)[][]): boolean {
-    // 左相飞中
-    const leftElephant = board[7][4]?.type === "bishop" && board[7][4]?.color === "r";
+    const elephantAtCenter = board[7][4]?.type === "bishop" && board[7][4]?.color === "r";
     const leftOriginal = board[9][2] === null;
-
-    // 右相飞中
-    const rightElephant = board[7][4]?.type === "bishop" && board[7][4]?.color === "r";
     const rightOriginal = board[9][6] === null;
-
-    return (leftElephant && leftOriginal) || (rightElephant && rightOriginal);
+    return elephantAtCenter && (leftOriginal || rightOriginal);
   }
 
-  // 起马局检测：红方马从(9,1)或(9,7)向前跳了一步
   private isHorseOpening(board: (Piece | null)[][]): boolean {
-    // 左马跳出
     const leftKnight = (board[7][2]?.type === "knight" && board[7][2]?.color === "r") ||
                        (board[7][0]?.type === "knight" && board[7][0]?.color === "r");
     const leftOriginal = board[9][1] === null;
-
-    // 右马跳出
     const rightKnight = (board[7][6]?.type === "knight" && board[7][6]?.color === "r") ||
                         (board[7][8]?.type === "knight" && board[7][8]?.color === "r");
     const rightOriginal = board[9][7] === null;
-
     return (leftKnight && leftOriginal) || (rightKnight && rightOriginal);
   }
 
-  // 过宫炮检测：红方炮二平六（炮从(7,7)平到(7,4)）
   private isPalaceCannon(board: (Piece | null)[][]): boolean {
     const cannonAtFour = board[7][4]?.type === "cannon" && board[7][4]?.color === "r";
     const cannonOriginal = board[7][7] === null;
     return cannonAtFour && cannonOriginal;
   }
 
-  // 士角炮检测：红方炮二平四（炮从(7,7)平到(7,3)）
   private isCornerCannon(board: (Piece | null)[][]): boolean {
     const cannonAtThree = board[7][3]?.type === "cannon" && board[7][3]?.color === "r";
     const cannonOriginal = board[7][7] === null;
     return cannonAtThree && cannonOriginal;
   }
 
-  // 金钩炮检测：红方炮二平七（炮从(7,7)平到(7,0)）
   private isHookCannon(board: (Piece | null)[][]): boolean {
     const cannonAtZero = board[7][0]?.type === "cannon" && board[7][0]?.color === "r";
     const cannonOriginal = board[7][7] === null;
     return cannonAtZero && cannonOriginal;
-  }
-
-  // 巡河炮检测：红方炮进河沿
-  private isRiverCannon(board: (Piece | null)[][]): boolean {
-    // 检查红方炮是否在河界位置（row=5）
-    for (let col = 0; col < 9; col++) {
-      if (board[5][col]?.type === "cannon" && board[5][col]?.color === "r") {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // 获取开局库说明
-  getOpeningDescription(openingType: string): string {
-    const descriptions: Record<string, string> = {
-      "center_cannon": "中炮开局 - 黑方应以屏风马",
-      "pawn_advance": "仙人指路 - 黑方应以对兵局",
-      "elephant": "飞相局 - 黑方应以左中炮",
-      "horse_opening": "起马局 - 黑方应以中炮",
-      "palace_cannon": "过宫炮 - 黑方应以跳马",
-      "corner_cannon": "士角炮 - 黑方应以跳马",
-      "hook_cannon": "金钩炮 - 黑方应以跳马",
-      "river_cannon": "巡河炮 - 黑方应以跳马",
-      "unknown": "未知开局 - 使用默认出子"
-    };
-    return descriptions[openingType] || descriptions["unknown"];
-  }
-
-  // 检查是否应该继续使用开局库
-  shouldUseOpeningBook(moveCount: number): boolean {
-    return moveCount <= this.maxOpeningMoves;
   }
 }
 

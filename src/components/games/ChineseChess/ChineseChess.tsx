@@ -739,66 +739,52 @@ const ChineseChess: React.FC = () => {
     return { opening: openingType, detail: description, moveCount };
   };
 
-// 修改 getOpeningResponse，添加更多调试信息
-const getOpeningResponse = useCallback((board: (Piece | null)[][]) => {
-  const moves = getAllMoves(board, "b");
-  const { opening, detail, moveCount } = getOpeningMove(board);
+  const getOpeningResponse = useCallback((board: (Piece | null)[][], lastRedMoveNotation?: string) => {
+    const moves = getAllMoves(board, "b");
+    const { opening, detail, moveCount } = getOpeningMove(board);
 
-  console.log(`开局库检查: opening=${opening}, moveCount=${moveCount}, shouldUse=${openingBook.shouldUseOpeningBook(moveCount)}`);
+    console.log(`开局库检查: opening=${opening}, moveCount=${moveCount}, shouldUse=${openingBook.shouldUseOpeningBook(moveCount)}`);
 
-  // 检查是否应该继续使用开局库
-  if (!openingBook.shouldUseOpeningBook(moveCount)) {
-    console.log(`开局库结束（已走${moveCount}步）`);
-    return null;
-  }
+    if (!openingBook.shouldUseOpeningBook(moveCount)) {
+      console.log(`开局库结束（已走${moveCount}步）`);
+      return null;
+    }
 
-  // 如果是 unknown 开局，也返回 null 让 AI 自己计算
-  if (opening === "unknown") {
-    console.log(`未识别的开局，使用AI计算`);
-    return null;
-  }
+    if (opening === "unknown") {
+      console.log(`未识别的开局，使用AI计算`);
+      return null;
+    }
 
-  // 获取最佳应对
-  const bestResponse = openingBook.getBestResponse(opening);
+    // 记录红方上一步走法（用于第三步匹配）
+    if (lastRedMoveNotation) {
+      openingBook.recordRedMove(lastRedMoveNotation);
+    }
 
-  if (bestResponse) {
-    console.log(`尝试开局应对: ${bestResponse.chineseNotation} (${bestResponse.from} -> ${bestResponse.to})`);
+    // 获取最佳应对
+    const bestResponse = openingBook.getBestResponse(opening, moveCount);
 
-    const match = moves.find(
-      (m) =>
-        m.from.row === bestResponse.from[0] &&
-        m.from.col === bestResponse.from[1] &&
-        m.to.row === bestResponse.to[0] &&
-        m.to.col === bestResponse.to[1]
-    );
+    if (bestResponse) {
+      console.log(`尝试开局应对: ${bestResponse.chineseNotation} (${bestResponse.from} -> ${bestResponse.to})`);
 
-    if (match) {
-      console.log(`✅ 开局库命中: ${detail} → ${bestResponse.chineseNotation}`);
-      console.log(`   优先级: ${bestResponse.priority}, ${bestResponse.description}`);
-      return match;
-    } else {
-      console.log(`❌ 开局走法不可用: ${bestResponse.chineseNotation}`);
-      // 尝试其他应对
-      const allResponses = openingBook.getAllResponses(opening);
-      for (const response of allResponses) {
-        const altMatch = moves.find(
-          (m) =>
-            m.from.row === response.from[0] &&
-            m.from.col === response.from[1] &&
-            m.to.row === response.to[0] &&
-            m.to.col === response.to[1]
-        );
-        if (altMatch) {
-          console.log(`   使用备选: ${response.chineseNotation}`);
-          return altMatch;
-        }
+      const match = moves.find(
+        (m) =>
+          m.from.row === bestResponse.from[0] &&
+          m.from.col === bestResponse.from[1] &&
+          m.to.row === bestResponse.to[0] &&
+          m.to.col === bestResponse.to[1]
+      );
+
+      if (match) {
+        console.log(`✅ 开局库命中: ${detail} → ${bestResponse.chineseNotation}`);
+        return match;
+      } else {
+        console.log(`❌ 开局走法不可用: ${bestResponse.chineseNotation}`);
       }
     }
-  }
 
-  console.log(`局库没有匹配，使用AI计算`);
-  return null;
-}, [getAllMoves]);
+    console.log(`局库没有匹配，使用AI计算`);
+    return null;
+  }, [getAllMoves]);
 
   // 获取最佳 AI 走法
   const getMasterAIMove = useCallback((board: (Piece | null)[][]) => {
@@ -869,6 +855,17 @@ const getOpeningResponse = useCallback((board: (Piece | null)[][]) => {
       setGameOver(true);
       setWinner(currentTurn);
       return true;
+    }
+
+
+    if (currentTurn === 'r') {
+      // 记录红方走的棋（用于开局库）
+      const piece = gameBoard[fromRow][fromCol];
+      if (piece && piece.color === 'r') {
+        // 生成中文走法 notation
+        const notation = `${getPieceSymbol(piece)}从${fromRow},${fromCol}到${toRow},${toCol}`;
+        openingBook.recordRedMove(notation);
+      }
     }
 
     const nextTurn = currentTurn === 'r' ? 'b' : 'r';

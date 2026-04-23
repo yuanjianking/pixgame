@@ -1,0 +1,349 @@
+{
+  "maxOpeningMoves": 4,
+  "openings": {
+    "center_cannon": {
+      "name": "中炮开局",
+      "firstMove": {
+        "from": [7, 7],
+        "to": [7, 5],
+        "notation": "炮二平五"
+      },
+      "responses": [
+        {
+          "moveNumber": 1,
+          "from": [0, 7],
+          "to": [2, 6],
+          "notation": "马8进7",
+          "priority": 100,
+          "description": "屏风马",
+          "nextResponses": {
+            "马二进三": {
+              "moveNumber": 3,
+              "from": [0, 1],
+              "to": [2, 2],
+              "notation": "马2进3",
+              "priority": 100,
+              "description": "屏风马 - 跳右马"
+            },
+            "兵七进一": {
+              "moveNumber": 3,
+              "from": [3, 6],
+              "to": [4, 6],
+              "notation": "卒7进1",
+              "priority": 95,
+              "description": "屏风马 - 挺7卒"
+            },
+            "车一平二": {
+              "moveNumber": 3,
+              "from": [0, 0],
+              "to": [1, 0],
+              "notation": "车9平8",
+              "priority": 90,
+              "description": "屏风马 - 出车"
+            }
+          }
+        },
+        {
+          "moveNumber": 1,
+          "from": [2, 7],
+          "to": [3, 5],
+          "notation": "炮8平5",
+          "priority": 85,
+          "description": "顺炮",
+          "nextResponses": {
+            "马二进三": {
+              "moveNumber": 3,
+              "from": [0, 1],
+              "to": [2, 2],
+              "notation": "马2进3",
+              "priority": 100,
+              "description": "顺炮 - 跳右马"
+            },
+            "车一进一": {
+              "moveNumber": 3,
+              "from": [0, 0],
+              "to": [1, 0],
+              "notation": "车9进1",
+              "priority": 90,
+              "description": "顺炮 - 起横车"
+            }
+          }
+        },
+        {
+          "moveNumber": 1,
+          "from": [2, 1],
+          "to": [3, 3],
+          "notation": "炮2平5",
+          "priority": 80,
+          "description": "列炮",
+          "nextResponses": {
+            "马八进七": {
+              "moveNumber": 3,
+              "from": [0, 7],
+              "to": [2, 6],
+              "notation": "马8进7",
+              "priority": 100,
+              "description": "列炮 - 跳左马"
+            }
+          }
+        }
+      ]
+    },
+    "pawn_advance": {
+      "name": "仙人指路",
+      "firstMove": {
+        "from": [6, 6],
+        "to": [5, 6],
+        "notation": "兵三进一"
+      },
+      "responses": [
+        {
+          "moveNumber": 1,
+          "from": [3, 6],
+          "to": [4, 6],
+          "notation": "卒7进1",
+          "priority": 100,
+          "description": "对兵局",
+          "nextResponses": {
+            "炮二平五": {
+              "moveNumber": 3,
+              "from": [2, 7],
+              "to": [3, 5],
+              "notation": "炮8平5",
+              "priority": 100,
+              "description": "对兵局 - 卒底炮"
+            },
+            "马二进三": {
+              "moveNumber": 3,
+              "from": [0, 7],
+              "to": [2, 6],
+              "notation": "马8进7",
+              "priority": 95,
+              "description": "对兵局 - 跳马"
+            }
+          }
+        },
+        {
+          "moveNumber": 1,
+          "from": [2, 1],
+          "to": [3, 3],
+          "notation": "炮2平5",
+          "priority": 95,
+          "description": "卒底炮",
+          "nextResponses": {
+            "炮八平五": {
+              "moveNumber": 3,
+              "from": [0, 1],
+              "to": [2, 2],
+              "notation": "马2进3",
+              "priority": 100,
+              "description": "卒底炮 - 跳右马"
+            }
+          }
+        }
+      ]
+    },
+    "palace_cannon": {
+      "name": "过宫炮",
+      "firstMove": {
+        "from": [7, 7],
+        "to": [7, 4],
+        "notation": "炮二平六"
+      },
+      "responses": [
+        {
+          "moveNumber": 1,
+          "from": [0, 7],
+          "to": [2, 6],
+          "notation": "马8进7",
+          "priority": 100,
+          "description": "跳马",
+          "nextResponses": {
+            "兵三进一": {
+              "moveNumber": 3,
+              "from": [3, 6],
+              "to": [4, 6],
+              "notation": "卒7进1",
+              "priority": 100,
+              "description": "过宫炮 - 挺7卒"
+            },
+            "马二进三": {
+              "moveNumber": 3,
+              "from": [0, 0],
+              "to": [1, 0],
+              "notation": "车9平8",
+              "priority": 95,
+              "description": "过宫炮 - 出车"
+            }
+          }
+        },
+        {
+          "moveNumber": 1,
+          "from": [2, 1],
+          "to": [3, 3],
+          "notation": "炮2平5",
+          "priority": 95,
+          "description": "还架中炮",
+          "nextResponses": {
+            "马八进七": {
+              "moveNumber": 3,
+              "from": [0, 1],
+              "to": [2, 2],
+              "notation": "马2进3",
+              "priority": 100,
+              "description": "还架中炮 - 跳右马"
+            }
+          }
+        }
+      ]
+    },
+    "elephant": {
+      "name": "飞相局",
+      "firstMove": {
+        "from": [9, 2],
+        "to": [7, 4],
+        "notation": "相三进五"
+      },
+      "responses": [
+        {
+          "moveNumber": 1,
+          "from": [2, 7],
+          "to": [3, 5],
+          "notation": "炮8平5",
+          "priority": 100,
+          "description": "左中炮",
+          "nextResponses": {
+            "马二进三": {
+              "moveNumber": 3,
+              "from": [0, 7],
+              "to": [2, 6],
+              "notation": "马8进7",
+              "priority": 100,
+              "description": "左中炮 - 跳左马"
+            }
+          }
+        },
+        {
+          "moveNumber": 1,
+          "from": [0, 7],
+          "to": [2, 6],
+          "notation": "马8进7",
+          "priority": 90,
+          "description": "跳马",
+          "nextResponses": {
+            "马二进三": {
+              "moveNumber": 3,
+              "from": [0, 0],
+              "to": [1, 0],
+              "notation": "车9平8",
+              "priority": 100,
+              "description": "跳马 - 出车"
+            }
+          }
+        }
+      ]
+    },
+    "horse_opening": {
+      "name": "起马局",
+      "firstMove": {
+        "from": [9, 7],
+        "to": [7, 6],
+        "notation": "马二进三"
+      },
+      "responses": [
+        {
+          "moveNumber": 1,
+          "from": [3, 6],
+          "to": [4, 6],
+          "notation": "卒7进1",
+          "priority": 100,
+          "description": "挺卒",
+          "nextResponses": {
+            "兵七进一": {
+              "moveNumber": 3,
+              "from": [0, 7],
+              "to": [2, 6],
+              "notation": "马8进7",
+              "priority": 100,
+              "description": "挺卒 - 跳左马"
+            }
+          }
+        },
+        {
+          "moveNumber": 1,
+          "from": [2, 7],
+          "to": [3, 5],
+          "notation": "炮8平5",
+          "priority": 95,
+          "description": "中炮",
+          "nextResponses": {
+            "马八进七": {
+              "moveNumber": 3,
+              "from": [0, 1],
+              "to": [2, 2],
+              "notation": "马2进3",
+              "priority": 100,
+              "description": "中炮 - 跳右马"
+            }
+          }
+        }
+      ]
+    },
+    "corner_cannon": {
+      "name": "士角炮",
+      "firstMove": {
+        "from": [7, 7],
+        "to": [7, 3],
+        "notation": "炮二平四"
+      },
+      "responses": [
+        {
+          "moveNumber": 1,
+          "from": [0, 7],
+          "to": [2, 6],
+          "notation": "马8进7",
+          "priority": 100,
+          "description": "跳马",
+          "nextResponses": {
+            "马二进三": {
+              "moveNumber": 3,
+              "from": [0, 0],
+              "to": [1, 0],
+              "notation": "车9平8",
+              "priority": 100,
+              "description": "跳马 - 出车"
+            }
+          }
+        }
+      ]
+    },
+    "hook_cannon": {
+      "name": "金钩炮",
+      "firstMove": {
+        "from": [7, 7],
+        "to": [7, 0],
+        "notation": "炮二平七"
+      },
+      "responses": [
+        {
+          "moveNumber": 1,
+          "from": [0, 7],
+          "to": [2, 6],
+          "notation": "马8进7",
+          "priority": 100,
+          "description": "跳马",
+          "nextResponses": {
+            "马二进三": {
+              "moveNumber": 3,
+              "from": [0, 1],
+              "to": [2, 2],
+              "notation": "马2进3",
+              "priority": 100,
+              "description": "跳马 - 跳右马"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
