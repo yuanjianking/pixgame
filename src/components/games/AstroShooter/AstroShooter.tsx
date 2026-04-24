@@ -8,7 +8,8 @@ import './AstroShooter.css';
 const AstroShooter: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<AstroShooterEngine>(new AstroShooterEngine());
-  const isInitializedRef = useRef(false);  // 改为 useRef
+  const isInitializedRef = useRef(false);
+  const animationIdRef = useRef<number | null>(null);
 
   // UI 状态
   const [gameState, setGameState] = useState<GameState>({
@@ -21,70 +22,49 @@ const AstroShooter: React.FC = () => {
     bestScore: parseInt(localStorage.getItem('astroBestScore') || '0')
   });
 
-  // 更新最佳分数
-  const updateBestScore = useCallback((score: number) => {
-    if (score > gameState.bestScore) {
-      const newBest = Math.floor(score);
-      localStorage.setItem('astroBestScore', String(newBest));
-      setGameState(prev => ({ ...prev, bestScore: newBest }));
-    }
-  }, [gameState.bestScore]);
-
-  // 处理状态变化
+  // 处理状态变化 - 优化避免循环
   const handleStateChange = useCallback((state: Partial<GameState>) => {
-    setGameState(prev => ({ ...prev, ...state }));
-    if (state.score !== undefined) updateBestScore(state.score);
-  }, [updateBestScore]);
+    setGameState(prev => {
+      const newState = { ...prev, ...state };
+      // 更新最佳分数
+      if (state.score !== undefined && state.score > prev.bestScore) {
+        const newBest = Math.floor(state.score);
+        localStorage.setItem('astroBestScore', String(newBest));
+        newState.bestScore = newBest;
+      }
+      return newState;
+    });
+  }, []);
 
   // 处理爆炸
   const handleExplosion = useCallback((x: number, y: number, size: number) => {
-    // 1. 创建额外的粒子效果（在 Canvas 上已有爆炸效果，这里是额外控制）
-
-    // 2. 根据爆炸大小产生不同程度的屏幕轻微闪烁（可选）
-    if (size > 20) {
-      // 大爆炸可以添加未来扩展效果
-      console.log(`💥 大爆炸 at (${Math.floor(x)}, ${Math.floor(y)}), 威力: ${size}`);
-    }
-
-    // 3. 可选：添加震动反馈（需要用户交互授权）
-    // 注意：浏览器需要用户先与页面交互才能使用震动 API
-    if ('vibrate' in navigator && window.navigator.vibrate && size > 15) {
-      // 轻微震动 50ms
-      window.navigator.vibrate(50);
-    }
-
-    // 4. 可选：播放爆炸音效（需要加载音频文件）
-    // 注意：实际使用时需要先加载音频文件
-    // const audio = new Audio('/sounds/explosion.mp3');
-    // audio.volume = 0.3;
-    // audio.play().catch(e => console.log('音频播放失败:', e));
-
-    // 5. 可选：添加闪光效果（通过 CSS 类）
     const canvas = canvasRef.current;
-    if (canvas && size > 15) {
+    if (canvas && size > 10) {
       canvas.classList.add('explosion-flash');
       setTimeout(() => {
         canvas?.classList.remove('explosion-flash');
-      }, 50);
+      }, 60);
     }
   }, []);
 
-  // 初始化引擎 - 不再调用 setState
+  // 初始化引擎 - 只执行一次
   useEffect(() => {
+    if (isInitializedRef.current) return;
+
     engineRef.current.setCallbacks(handleStateChange, handleExplosion);
     engineRef.current.restart();
     isInitializedRef.current = true;
   }, [handleStateChange, handleExplosion]);
 
-  // 游戏循环
+  // 游戏循环 - 独立 effect，不依赖任何会变化的状态
   useEffect(() => {
     if (!isInitializedRef.current) return;
 
-    let animationId: number;
-
     const gameLoop = () => {
+      // 更新游戏逻辑
       engineRef.current.update();
 
+      // 渲染
       const canvas = canvasRef.current;
       if (canvas) {
         const ctx = canvas.getContext('2d');
@@ -94,12 +74,18 @@ const AstroShooter: React.FC = () => {
         }
       }
 
-      animationId = requestAnimationFrame(gameLoop);
+      animationIdRef.current = requestAnimationFrame(gameLoop);
     };
 
-    animationId = requestAnimationFrame(gameLoop);
-    return () => cancelAnimationFrame(animationId);
-  }, []);
+    animationIdRef.current = requestAnimationFrame(gameLoop);
+
+    return () => {
+      if (animationIdRef.current) {
+        cancelAnimationFrame(animationIdRef.current);
+        animationIdRef.current = null;
+      }
+    };
+  }, []); // 空依赖，只运行一次
 
   // 鼠标/触摸移动
   const handleMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -151,7 +137,7 @@ const AstroShooter: React.FC = () => {
     engineRef.current.restart();
   }, []);
 
-  // 双指触摸放炸弹（手机）
+  // 双指触摸放炸弹
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       e.preventDefault();
