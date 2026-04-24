@@ -6,6 +6,7 @@ export const gameComponents: Record<string, React.LazyExoticComponent<React.Comp
   'brick-breaker': lazy(() => import('./BrickBreaker/BrickBreaker2D')),
   'chinese-chess': lazy(() => import('./ChineseChess/ChineseChess')),
   'sokoban': lazy(() => import('./Sokoban/Sokoban')),
+  'astro-shooter': lazy(() => import('./AstroShooter/AstroShooter')),
 };
 
 // 根据游戏ID获取对应的游戏组件

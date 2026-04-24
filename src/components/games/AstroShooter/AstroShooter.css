@@ -1,0 +1,156 @@
+/* AstroShooter.css */
+.astro-container {
+  min-height: 100vh;
+
+
+
+  font-family: 'Courier New', monospace;
+}
+
+.game-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 40px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+}
+
+.game-canvas {
+  display: block;
+  box-shadow: 0 0 0 2px #3efff0, 0 12px 28px black;
+  border-radius: 16px;
+  cursor: none;
+  background-color: #010010;
+}
+
+/* 信息面板 - 固定宽度与 canvas 一致 */
+.info-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 480px;           /* 固定宽度，与 canvas 一致 */
+  max-width: 100%;
+  gap: 8px;
+  background: #01011ccc;
+  backdrop-filter: blur(8px);
+  padding: 6px 12px;
+  border-radius: 60px;
+  border: 1px solid #2affee99;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* 每个信息项 - 不收缩，不换行 */
+.info-item {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #afffff;
+  text-shadow: 0 0 4px #0af;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 分数可以稍微弹性，让布局更均衡 */
+.info-item.score {
+  flex-shrink: 1;
+  min-width: 55px;
+}
+
+.info-item span {
+  color: #ffdd99;
+  font-size: 1rem;
+  margin-left: 2px;
+}
+
+/* 重启按钮 - 固定不收缩 */
+.restart-btn {
+  background: linear-gradient(135deg, #2a2a5a, #0f0f2a);
+  border: none;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: bold;
+  padding: 4px 12px;
+  border-radius: 60px;
+  color: #c7f7ff;
+  cursor: pointer;
+  transition: 0.2s;
+  box-shadow: 0 0 6px cyan;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.restart-btn:hover {
+  background: #3e6eff;
+  transform: scale(1.02);
+  box-shadow: 0 0 15px cyan;
+  color: white;
+}
+
+.instruction {
+  font-size: 0.65rem;
+  background: #000000aa;
+  padding: 3px 12px;
+  border-radius: 20px;
+  color: #aaf0ff;
+}
+
+.game-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 16px;
+  gap: 20px;
+}
+
+.game-over-text {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #ff5577;
+  text-shadow: 0 0 10px #ff0000;
+}
+
+.overlay-btn {
+  font-size: 1.2rem;
+  padding: 8px 24px;
+}
+
+/* 响应式：小屏幕时缩小间距和字体 */
+@media (max-width: 550px) {
+  .info-panel {
+    width: 100%;
+    max-width: 420px;
+    gap: 4px;
+    padding: 4px 8px;
+  }
+  .info-item {
+    font-size: 0.7rem;
+  }
+  .info-item span {
+    font-size: 0.85rem;
+  }
+  .restart-btn {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+  }
+  .instruction {
+    font-size: 0.55rem;
+  }
+}
+
+/* 爆炸闪光效果 */
+.game-canvas.explosion-flash {
+  filter: brightness(1.3);
+  transition: filter 0.05s ease-out;
+}

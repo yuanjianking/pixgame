@@ -1,495 +1,426 @@
-// Sokoban.tsx
+// Sokoban.tsx - 修复 ref 在 render 中访问的问题
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import './Sokoban.css';
+import SokobanLevels from './SokobanLevels.json';
 
-// 游戏配置
-const TILE_SIZE = 48;
-const ROWS = 10;
-const COLS = 10;
-const CANVAS_WIDTH = TILE_SIZE * COLS;
-const CANVAS_HEIGHT = TILE_SIZE * ROWS;
+// ==================== 类型定义 ====================
+interface LevelData {
+  id: number;
+  name: string;
+  boxes: number;
+  map: number[][];
+}
 
-// 预置关卡库
-const PRESET_LEVELS: number[][][] = [
-  // 关卡1
-  [
-    [1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,1,0,0,0,0,1],
-    [1,0,3,0,1,0,4,0,0,1],
-    [1,0,0,0,1,0,0,0,0,1],
-    [1,1,1,0,0,0,3,0,0,1],
-    [1,0,0,0,4,0,0,0,0,1],
-    [1,0,3,0,0,0,1,0,0,1],
-    [1,0,0,0,2,0,1,0,4,1],
-    [1,0,0,0,0,0,1,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1]
-  ],
-  // 关卡2
-  [
-    [1,1,1,1,1,1,1,1,1,1],
-    [1,4,0,0,1,0,0,0,4,1],
-    [1,0,3,0,1,0,3,0,0,1],
-    [1,0,0,0,0,0,0,0,0,1],
-    [1,1,1,0,2,0,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,1],
-    [1,0,3,0,1,0,0,0,0,1],
-    [1,0,0,0,1,0,3,0,0,1],
-    [1,4,0,0,0,0,0,0,4,1],
-    [1,1,1,1,1,1,1,1,1,1]
-  ],
-  // 关卡3
-  [
-    [1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,0,1,0,0,0,1],
-    [1,0,3,0,0,1,0,4,0,1],
-    [1,0,0,1,0,0,0,0,0,1],
-    [1,0,3,1,2,0,1,0,0,1],
-    [1,0,0,1,0,0,1,3,0,1],
-    [1,0,4,0,0,0,0,0,0,1],
-    [1,0,0,0,1,0,0,0,0,1],
-    [1,0,0,0,0,0,0,4,0,1],
-    [1,1,1,1,1,1,1,1,1,1]
-  ],
-  // 关卡4
-  [
-    [1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,4,0,0,0,0,0,1],
-    [1,0,3,0,1,0,3,0,0,1],
-    [1,0,0,0,1,0,0,0,0,1],
-    [1,0,1,0,2,0,1,0,4,1],
-    [1,0,0,0,0,0,0,0,0,1],
-    [1,0,3,0,1,0,0,0,0,1],
-    [1,0,0,0,0,0,0,3,0,1],
-    [1,0,0,4,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1]
-  ],
-  // 关卡5
-  [
-    [1,1,1,1,1,1,1,1,1,1],
-    [1,4,0,0,0,1,0,0,4,1],
-    [1,0,3,0,0,1,0,3,0,1],
-    [1,0,0,0,0,0,0,0,0,1],
-    [1,1,1,0,2,0,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,1],
-    [1,0,3,0,1,0,0,3,0,1],
-    [1,0,0,0,1,0,0,0,0,1],
-    [1,4,0,0,0,0,0,0,4,1],
-    [1,1,1,1,1,1,1,1,1,1]
-  ]
-];
-
-// 保存的游戏状态接口
-interface SavedGameState {
-  levelIndex: number;
-  stepCount: number;
+interface GameState {
   map: number[][];
   playerPos: { x: number; y: number };
+  stepCount: number;
   boxesOnTarget: number;
   totalTargets: number;
+  isWin: boolean;
+}
+
+
+interface SavedGameState {
+  levelIndex: number;
+  gameState: GameState;
+  rows: number;
+  cols: number;
   savedAt: number;
 }
 
-const Sokoban: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationIdRef = useRef<number>(0);
-  const isInitializedRef = useRef(false);
+// ==================== 游戏引擎类 ====================
+class SokobanEngine {
+  private state: GameState;
+  private history: GameState[];
+  private historyIndex: number;
 
-  // 游戏状态
-  const [levelIndex, setLevelIndex] = useState(0);
-  const [stepCount, setStepCount] = useState(0);
-  const [gameWin, setGameWin] = useState(false);
-  const [showLevelUp, setShowLevelUp] = useState(false);
-  const [hasSavedGame, setHasSavedGame] = useState(() => {
-    return !!localStorage.getItem('sokoban_saved_game');
-  });
-  const [remainingTargets, setRemainingTargets] = useState(0);
+  constructor() {
+    this.state = {
+      map: [],
+      playerPos: { x: 0, y: 0 },
+      stepCount: 0,
+      boxesOnTarget: 0,
+      totalTargets: 0,
+      isWin: false
+    };
+    this.history = [];
+    this.historyIndex = -1;
+  }
 
-  // 游戏数据 - 这些用于游戏逻辑，不需要触发渲染
-  const mapRef = useRef<number[][]>([]);
-  const playerPosRef = useRef({ x: 4, y: 7 });
-  const totalTargetsRef = useRef(0);
-  const boxesOnTargetRef = useRef(0);
-  const levelIndexRef = useRef(0);
-  const stepCountRef = useRef(0);
-  const gameWinRef = useRef(false);
+  getSnapshot(): GameState {
+    return {
+      map: this.state.map.map(row => [...row]),
+      playerPos: { ...this.state.playerPos },
+      stepCount: this.state.stepCount,
+      boxesOnTarget: this.state.boxesOnTarget,
+      totalTargets: this.state.totalTargets,
+      isWin: this.state.isWin
+    };
+  }
 
-  // 同步 state 到 ref
-  useEffect(() => {
-    levelIndexRef.current = levelIndex;
-  }, [levelIndex]);
+  canUndo(): boolean {
+    return this.historyIndex > 0 && !this.state.isWin;
+  }
 
-  useEffect(() => {
-    stepCountRef.current = stepCount;
-  }, [stepCount]);
+  isWin(): boolean {
+    return this.state.isWin;
+  }
 
-  useEffect(() => {
-    gameWinRef.current = gameWin;
-  }, [gameWin]);
-
-  // 辅助函数：计算在目标点上的箱子数
-  const countBoxesOnTarget = (gameMap: number[][]) => {
+  private countBoxesOnTarget(map: number[][]): number {
     let count = 0;
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        if (gameMap[r][c] === 6) count++;
+    for (let r = 0; r < map.length; r++) {
+      for (let c = 0; c < map[0].length; c++) {
+        if (map[r][c] === 6) count++;
       }
     }
     return count;
-  };
+  }
 
-  // 更新剩余目标数的显示
-  const updateRemainingTargets = () => {
-    const remaining = totalTargetsRef.current - boxesOnTargetRef.current;
-    setRemainingTargets(remaining);
-  };
-
-  // 无限关卡生成器
-  const generateInfiniteLevel = (seed: number): number[][] => {
-    const baseLevel = PRESET_LEVELS[seed % PRESET_LEVELS.length];
-    const newLevel = baseLevel.map(row => [...row]);
-
-    // 随机微调
-    if (seed >= PRESET_LEVELS.length) {
-      for (let i = 0; i < 3; i++) {
-        const boxes: [number, number][] = [];
-        const empties: [number, number][] = [];
-        for (let r = 0; r < ROWS; r++) {
-          for (let c = 0; c < COLS; c++) {
-            if (newLevel[r][c] === 3) boxes.push([r, c]);
-            if (newLevel[r][c] === 0) empties.push([r, c]);
-          }
-        }
-        if (boxes.length > 0 && empties.length > 0) {
-          const [oldR, oldC] = boxes[0];
-          const [newR, newC] = empties[Math.floor(Math.random() * empties.length)];
-          newLevel[oldR][oldC] = 0;
-          newLevel[newR][newC] = 3;
-        }
-      }
-    }
-
-    return newLevel;
-  };
-
-  // 从原始地图构建运行时地图
-  const buildRuntimeMap = (rawMap: number[][]) => {
+  private buildFromRawMap(rawMap: number[][]): Omit<GameState, 'stepCount' | 'isWin'> {
     const newMap = rawMap.map(row => [...row]);
-    let player = { x: 4, y: 7 };
+    let player = { x: 0, y: 0 };
     let targets = 0;
 
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        if (newMap[r][c] === 2) player = { x: c, y: r };
-        if (newMap[r][c] === 4) targets++;
+    for (let i = 0; i < newMap.length; i++) {
+      for (let j = 0; j < newMap[0].length; j++) {
+        if (newMap[i][j] === 2) player = { x: j, y: i };
+        if (newMap[i][j] === 4) targets++;
       }
     }
 
-    // 确保玩家存在
-    let playerExists = false;
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        if (newMap[r][c] === 2) playerExists = true;
-      }
+    const boxesOnTarget = this.countBoxesOnTarget(newMap);
+
+    return {
+      map: newMap,
+      playerPos: player,
+      boxesOnTarget,
+      totalTargets: targets
+    };
+  }
+
+  loadLevel(rawMap: number[][]): GameState {
+    const { map, playerPos, boxesOnTarget, totalTargets } = this.buildFromRawMap(rawMap);
+
+    this.state = {
+      map,
+      playerPos,
+      stepCount: 0,
+      boxesOnTarget,
+      totalTargets,
+      isWin: false
+    };
+
+    this.history = [];
+    this.historyIndex = -1;
+    this.saveToHistory();
+
+    return this.getSnapshot();
+  }
+
+  restoreState(savedState: GameState): GameState {
+    this.state = {
+      map: savedState.map.map(row => [...row]),
+      playerPos: { ...savedState.playerPos },
+      stepCount: savedState.stepCount,
+      boxesOnTarget: savedState.boxesOnTarget,
+      totalTargets: savedState.totalTargets,
+      isWin: savedState.isWin
+    };
+
+    this.history = [];
+    this.historyIndex = -1;
+    this.saveToHistory();
+
+    return this.getSnapshot();
+  }
+
+  private saveToHistory(): void {
+    const snapshot: GameState = {
+      map: this.state.map.map(row => [...row]),
+      playerPos: { ...this.state.playerPos },
+      stepCount: this.state.stepCount,
+      boxesOnTarget: this.state.boxesOnTarget,
+      totalTargets: this.state.totalTargets,
+      isWin: this.state.isWin
+    };
+
+    if (this.historyIndex < this.history.length - 1) {
+      this.history = this.history.slice(0, this.historyIndex + 1);
     }
-    if (!playerExists) {
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          if (newMap[r][c] === 0) {
-            newMap[r][c] = 2;
-            player = { x: c, y: r };
-            break;
-          }
-        }
-      }
+
+    this.history.push(snapshot);
+    this.historyIndex++;
+
+    if (this.history.length > 50) {
+      this.history.shift();
+      this.historyIndex--;
     }
+  }
 
-    return { map: newMap, playerPos: player, totalTargets: targets };
-  };
+  move(dx: number, dy: number): { success: boolean; newState: GameState | null } {
+    if (this.state.isWin) return { success: false, newState: null };
 
-  // 加载关卡
-  const loadLevel = useCallback((index: number) => {
-    let rawMap: number[][];
-    if (index < PRESET_LEVELS.length) {
-      rawMap = PRESET_LEVELS[index];
-    } else {
-      rawMap = generateInfiniteLevel(index);
-    }
-
-    const { map: newMap, playerPos: newPlayer, totalTargets: targets } = buildRuntimeMap(rawMap);
-    mapRef.current = newMap;
-    playerPosRef.current = newPlayer;
-    totalTargetsRef.current = targets;
-    boxesOnTargetRef.current = countBoxesOnTarget(newMap);
-
-    setLevelIndex(index);
-    setStepCount(0);
-    setGameWin(false);
-    updateRemainingTargets();
-  }, []);
-
-  // 移动到下一关（胜利时调用）
-  const goToNextLevel = useCallback(() => {
-    const nextIndex = levelIndexRef.current + 1;
-    loadLevel(nextIndex);
-  }, [loadLevel]);
-
-  // 移动逻辑
-  const tryMove = useCallback((dx: number, dy: number) => {
-    if (gameWinRef.current) return false;
-
-    const px = playerPosRef.current.x;
-    const py = playerPosRef.current.y;
+    const { map, playerPos, stepCount, boxesOnTarget, totalTargets } = this.state;
+    const px = playerPos.x;
+    const py = playerPos.y;
     const nx = px + dx;
     const ny = py + dy;
+    const maxRows = map.length;
+    const maxCols = map[0].length;
 
-    if (ny < 0 || ny >= ROWS || nx < 0 || nx >= COLS) return false;
+    if (ny < 0 || ny >= maxRows || nx < 0 || nx >= maxCols) {
+      return { success: false, newState: null };
+    }
 
-    const cell = mapRef.current[ny][nx];
+    const cell = map[ny][nx];
+    if (cell === 1) return { success: false, newState: null };
 
-    // 撞墙
-    if (cell === 1) return false;
+    const newMap = map.map(row => [...row]);
+    let newPlayerPos = { x: px, y: py };
+    let newBoxesOnTarget = boxesOnTarget;
+    let moved = false;
 
-    // 推箱子
     if (cell === 3 || cell === 6) {
       const nnx = nx + dx;
       const nny = ny + dy;
-      if (nny < 0 || nny >= ROWS || nnx < 0 || nnx >= COLS) return false;
-
-      const beyond = mapRef.current[nny][nnx];
-      if (beyond === 1 || beyond === 3 || beyond === 6) return false;
-
-      const wasBoxOnTarget = (cell === 6);
-      const isPlayerOnTarget = (mapRef.current[py][px] === 5);
-
-      // 移动玩家
-      mapRef.current[py][px] = isPlayerOnTarget ? 4 : 0;
-
-      // 移动箱子
-      const isBeyondTarget = (beyond === 4);
-      mapRef.current[nny][nnx] = isBeyondTarget ? 6 : 3;
-      mapRef.current[ny][nx] = wasBoxOnTarget ? 5 : 2;
-
-      playerPosRef.current = { x: nx, y: ny };
-
-      // 更新箱子计数
-      if (wasBoxOnTarget) boxesOnTargetRef.current--;
-      if (isBeyondTarget) boxesOnTargetRef.current++;
-
-      setStepCount(prev => prev + 1);
-      updateRemainingTargets();
-
-      // 检查胜利
-      if (boxesOnTargetRef.current === totalTargetsRef.current && totalTargetsRef.current > 0) {
-        setGameWin(true);
-        setShowLevelUp(true);
-        setTimeout(() => {
-          setShowLevelUp(false);
-          goToNextLevel();
-        }, 1500);
+      if (nny < 0 || nny >= maxRows || nnx < 0 || nnx >= maxCols) {
+        return { success: false, newState: null };
       }
 
-      return true;
+      const beyond = newMap[nny][nnx];
+      if (beyond === 1 || beyond === 3 || beyond === 6) {
+        return { success: false, newState: null };
+      }
+
+      const wasBoxOnTarget = (cell === 6);
+      const isPlayerOnTarget = (newMap[py][px] === 5);
+
+      newMap[py][px] = isPlayerOnTarget ? 4 : 0;
+
+      const isBeyondTarget = (beyond === 4);
+      newMap[nny][nnx] = isBeyondTarget ? 6 : 3;
+      newMap[ny][nx] = wasBoxOnTarget ? 5 : 2;
+
+      newPlayerPos = { x: nx, y: ny };
+
+      if (wasBoxOnTarget) newBoxesOnTarget--;
+      if (isBeyondTarget) newBoxesOnTarget++;
+
+      moved = true;
+    }
+    else if (cell === 0 || cell === 4) {
+      const isPlayerOnTarget = (newMap[py][px] === 5);
+      newMap[py][px] = isPlayerOnTarget ? 4 : 0;
+      newMap[ny][nx] = (cell === 4) ? 5 : 2;
+      newPlayerPos = { x: nx, y: ny };
+      moved = true;
     }
 
-    // 普通移动
-    if (cell === 0 || cell === 4) {
-      const isPlayerOnTarget = (mapRef.current[py][px] === 5);
-      mapRef.current[py][px] = isPlayerOnTarget ? 4 : 0;
-      mapRef.current[ny][nx] = (cell === 4) ? 5 : 2;
-      playerPosRef.current = { x: nx, y: ny };
-      setStepCount(prev => prev + 1);
-      return true;
-    }
+    if (!moved) return { success: false, newState: null };
 
-    return false;
-  }, [goToNextLevel]);
+    const newStepCount = stepCount + 1;
+    const isWin = (newBoxesOnTarget === totalTargets && totalTargets > 0);
 
-  // 重置当前关卡
-  const resetLevel = useCallback(() => {
-    loadLevel(levelIndexRef.current);
-  }, [loadLevel]);
+    this.state = {
+      map: newMap,
+      playerPos: newPlayerPos,
+      stepCount: newStepCount,
+      boxesOnTarget: newBoxesOnTarget,
+      totalTargets,
+      isWin
+    };
 
-  // 上一关
-  const prevLevel = useCallback(() => {
-    if (levelIndexRef.current > 0) {
-      loadLevel(levelIndexRef.current - 1);
-    }
-  }, [loadLevel]);
+    this.saveToHistory();
 
-  // 下一关
-  const nextLevel = useCallback(() => {
-    loadLevel(levelIndexRef.current + 1);
-  }, [loadLevel]);
+    return { success: true, newState: this.getSnapshot() };
+  }
 
-  // 保存游戏
-  const saveGame = useCallback(() => {
-    try {
-      const savedState: SavedGameState = {
-        levelIndex: levelIndexRef.current,
-        stepCount: stepCountRef.current,
-        map: mapRef.current.map(row => [...row]),
-        playerPos: { ...playerPosRef.current },
-        boxesOnTarget: boxesOnTargetRef.current,
-        totalTargets: totalTargetsRef.current,
-        savedAt: Date.now(),
-      };
-      localStorage.setItem('sokoban_saved_game', JSON.stringify(savedState));
-      setHasSavedGame(true);
-      return true;
-    } catch (error) {
-      console.error('保存失败:', error);
-      return false;
-    }
+  undo(): GameState | null {
+    if (this.state.isWin) return null;
+    if (this.historyIndex <= 0) return null;
+
+    this.historyIndex--;
+    const prev = this.history[this.historyIndex];
+
+    this.state = {
+      map: prev.map.map(row => [...row]),
+      playerPos: { ...prev.playerPos },
+      stepCount: prev.stepCount,
+      boxesOnTarget: prev.boxesOnTarget,
+      totalTargets: prev.totalTargets,
+      isWin: false
+    };
+
+    return this.getSnapshot();
+  }
+
+  reset(rawMap: number[][]): GameState {
+    return this.loadLevel(rawMap);
+  }
+}
+
+// ==================== React组件 ====================
+const Sokoban: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<SokobanEngine>(new SokobanEngine());
+  const isInitializedRef = useRef(false);
+
+  // UI 状态 - 包含所有需要渲染的信息
+  const [levelIndex, setLevelIndex] = useState(0);
+  const [gameState, setGameState] = useState<GameState>({
+    map: [],
+    playerPos: { x: 0, y: 0 },
+    stepCount: 0,
+    boxesOnTarget: 0,
+    totalTargets: 0,
+    isWin: false
+  });
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [rows, setRows] = useState(10);
+  const [cols, setCols] = useState(10);
+  const [hasSavedGame, setHasSavedGame] = useState(() => {
+    return !!localStorage.getItem('sokoban_saved_game');
+  });
+
+  // 关卡数据
+  const [levels] = useState<LevelData[]>(SokobanLevels.levels);
+
+  // 防止胜利重复触发的锁
+  const winProcessingRef = useRef(false);
+
+  // 更新 canUndo 状态
+  const updateCanUndo = useCallback(() => {
+    setCanUndo(engineRef.current.canUndo());
   }, []);
 
-  // 加载存档
-  const loadGame = useCallback(() => {
-    try {
-      const savedData = localStorage.getItem('sokoban_saved_game');
-      if (!savedData) return false;
-
-      const saved: SavedGameState = JSON.parse(savedData);
-      mapRef.current = saved.map;
-      playerPosRef.current = saved.playerPos;
-      totalTargetsRef.current = saved.totalTargets;
-      boxesOnTargetRef.current = saved.boxesOnTarget;
-
-      setLevelIndex(saved.levelIndex);
-      setStepCount(saved.stepCount);
-      setGameWin(false);
-      updateRemainingTargets();
-
-      return true;
-    } catch (error) {
-      console.error('加载失败:', error);
-      return false;
-    }
-  }, []);
-
-  // 渲染函数
-  const render = useCallback(() => {
+  // 渲染 canvas
+  const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = CANVAS_WIDTH;
-    canvas.height = CANVAS_HEIGHT;
+    const { map, isWin } = gameState;
+    const currentRows = map.length;
+    const currentCols = map[0]?.length || 0;
+    if (currentRows === 0 || currentCols === 0) return;
 
-    // 背景
+    const maxCanvasSize = Math.min(
+      window.innerWidth - 80,
+      window.innerHeight - 200,
+      700
+    );
+    const dynamicTileSize = Math.floor(maxCanvasSize / Math.max(currentRows, currentCols));
+
+    const newWidth = dynamicTileSize * currentCols;
+    const newHeight = dynamicTileSize * currentRows;
+
+    if (canvas.width !== newWidth || canvas.height !== newHeight) {
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+    }
+
     ctx.fillStyle = '#2a2418';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    for (let row = 0; row < ROWS; row++) {
-      for (let col = 0; col < COLS; col++) {
-        const type = mapRef.current[row]?.[col];
-        const x = col * TILE_SIZE;
-        const y = row * TILE_SIZE;
+    for (let row = 0; row < currentRows; row++) {
+      for (let col = 0; col < currentCols; col++) {
+        const type = map[row]?.[col];
+        const x = col * dynamicTileSize;
+        const y = row * dynamicTileSize;
+        const s = dynamicTileSize;
 
-        // 地板
-        if (type === 1) { // 墙
+        if (type === 1) {
           ctx.fillStyle = '#5d3a1a';
-          ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+          ctx.fillRect(x, y, s, s);
           ctx.fillStyle = '#7c532a';
-          ctx.fillRect(x + 4, y + 4, TILE_SIZE - 8, TILE_SIZE - 8);
-          ctx.fillStyle = '#4a2c10';
-          for (let i = 0; i < 3; i++) {
-            ctx.fillRect(x + 10 + i * 14, y + 12, 5, TILE_SIZE - 24);
-          }
-        }
-        else if (type === 0) { // 空地
+          ctx.fillRect(x + 4, y + 4, s - 8, s - 8);
+        } else if (type === 0) {
           ctx.fillStyle = '#e9d6af';
-          ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+          ctx.fillRect(x, y, s, s);
           ctx.fillStyle = '#dbbc87';
-          ctx.fillRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-        }
-        else if (type === 4) { // 目标点
+          ctx.fillRect(x + 2, y + 2, s - 4, s - 4);
+        } else if (type === 4) {
           ctx.fillStyle = '#f3deba';
-          ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+          ctx.fillRect(x, y, s, s);
           ctx.fillStyle = '#e6b86e';
           ctx.beginPath();
-          ctx.arc(x + TILE_SIZE/2, y + TILE_SIZE/2, TILE_SIZE * 0.22, 0, 2 * Math.PI);
+          ctx.arc(x + s/2, y + s/2, s * 0.22, 0, 2 * Math.PI);
           ctx.fill();
-          ctx.fillStyle = '#d4922b';
-          ctx.beginPath();
-          ctx.arc(x + TILE_SIZE/2, y + TILE_SIZE/2, TILE_SIZE * 0.1, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-        else if (type === 2) { // 玩家
+        } else if (type === 2) {
           ctx.fillStyle = '#e9d6af';
-          ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-          const cx = x + TILE_SIZE/2;
-          const cy = y + TILE_SIZE/2;
+          ctx.fillRect(x, y, s, s);
+          const cx = x + s/2;
+          const cy = y + s/2;
           ctx.fillStyle = '#cc6b2c';
           ctx.beginPath();
-          ctx.ellipse(cx - 2, cy - 12, 9, 7, 0, 0, 2 * Math.PI);
+          ctx.ellipse(cx - 2, cy - s/4, s/5.3, s/6.8, 0, 0, 2 * Math.PI);
           ctx.fill();
           ctx.fillStyle = '#ffd6aa';
           ctx.beginPath();
-          ctx.arc(cx - 2, cy - 4, 10, 0, 2 * Math.PI);
+          ctx.arc(cx - 2, cy - s/12, s/4.8, 0, 2 * Math.PI);
           ctx.fill();
           ctx.fillStyle = '#2f241b';
           ctx.beginPath();
-          ctx.arc(cx - 7, cy - 7, 2, 0, 2 * Math.PI);
+          ctx.arc(cx - s/6.8, cy - s/6.8, s/24, 0, 2 * Math.PI);
           ctx.fill();
           ctx.beginPath();
-          ctx.arc(cx + 1, cy - 7, 2, 0, 2 * Math.PI);
+          ctx.arc(cx + s/48, cy - s/6.8, s/24, 0, 2 * Math.PI);
           ctx.fill();
           ctx.fillStyle = '#487c5c';
-          ctx.fillRect(cx - 8, cy - 1, 16, 12);
-        }
-        else if (type === 5) { // 玩家在目标点
+          ctx.fillRect(cx - s/6, cy - s/48, s/3, s/4);
+        } else if (type === 5) {
           ctx.fillStyle = '#f3deba';
-          ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+          ctx.fillRect(x, y, s, s);
           ctx.fillStyle = '#e6b86e';
           ctx.beginPath();
-          ctx.arc(x + TILE_SIZE/2, y + TILE_SIZE/2, TILE_SIZE * 0.22, 0, 2 * Math.PI);
+          ctx.arc(x + s/2, y + s/2, s * 0.22, 0, 2 * Math.PI);
           ctx.fill();
-          const cx = x + TILE_SIZE/2;
-          const cy = y + TILE_SIZE/2;
+          const cx = x + s/2;
+          const cy = y + s/2;
           ctx.fillStyle = '#cc6b2c';
           ctx.beginPath();
-          ctx.ellipse(cx - 2, cy - 12, 9, 7, 0, 0, 2 * Math.PI);
+          ctx.ellipse(cx - 2, cy - s/4, s/5.3, s/6.8, 0, 0, 2 * Math.PI);
           ctx.fill();
           ctx.fillStyle = '#ffd6aa';
           ctx.beginPath();
-          ctx.arc(cx - 2, cy - 4, 10, 0, 2 * Math.PI);
+          ctx.arc(cx - 2, cy - s/12, s/4.8, 0, 2 * Math.PI);
           ctx.fill();
           ctx.fillStyle = '#2f241b';
           ctx.beginPath();
-          ctx.arc(cx - 7, cy - 7, 2, 0, 2 * Math.PI);
+          ctx.arc(cx - s/6.8, cy - s/6.8, s/24, 0, 2 * Math.PI);
           ctx.fill();
           ctx.beginPath();
-          ctx.arc(cx + 1, cy - 7, 2, 0, 2 * Math.PI);
+          ctx.arc(cx + s/48, cy - s/6.8, s/24, 0, 2 * Math.PI);
           ctx.fill();
           ctx.fillStyle = '#487c5c';
-          ctx.fillRect(cx - 8, cy - 1, 16, 12);
-        }
-        else if (type === 3) { // 箱子
+          ctx.fillRect(cx - s/6, cy - s/48, s/3, s/4);
+        } else if (type === 3) {
           ctx.fillStyle = '#e9d6af';
-          ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+          ctx.fillRect(x, y, s, s);
           ctx.fillStyle = '#b97f44';
-          ctx.fillRect(x + 8, y + 8, TILE_SIZE - 16, TILE_SIZE - 16);
+          ctx.fillRect(x + s/6, y + s/6, s - s/3, s - s/3);
           ctx.fillStyle = '#9b5e2c';
-          ctx.fillRect(x + 10, y + 10, TILE_SIZE - 20, TILE_SIZE - 20);
+          ctx.fillRect(x + s/4.8, y + s/4.8, s - s/2.4, s - s/2.4);
           ctx.fillStyle = '#6d3f1a';
-          ctx.fillRect(x + TILE_SIZE/2 - 3, y + 12, 6, TILE_SIZE - 24);
-          ctx.fillRect(x + 12, y + TILE_SIZE/2 - 3, TILE_SIZE - 24, 6);
-        }
-        else if (type === 6) { // 箱子在目标点
+          ctx.fillRect(x + s/2 - 3, y + s/4, 6, s - s/2);
+          ctx.fillRect(x + s/4, y + s/2 - 3, s - s/2, 6);
+        } else if (type === 6) {
           ctx.fillStyle = '#f3deba';
-          ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+          ctx.fillRect(x, y, s, s);
           ctx.fillStyle = '#e6b86e';
           ctx.beginPath();
-          ctx.arc(x + TILE_SIZE/2, y + TILE_SIZE/2, TILE_SIZE * 0.22, 0, 2 * Math.PI);
+          ctx.arc(x + s/2, y + s/2, s * 0.22, 0, 2 * Math.PI);
           ctx.fill();
           ctx.fillStyle = '#ffc857';
-          ctx.fillRect(x + 8, y + 8, TILE_SIZE - 16, TILE_SIZE - 16);
+          ctx.fillRect(x + s/6, y + s/6, s - s/3, s - s/3);
           ctx.fillStyle = '#e5a128';
-          ctx.fillRect(x + 10, y + 10, TILE_SIZE - 20, TILE_SIZE - 20);
+          ctx.fillRect(x + s/4.8, y + s/4.8, s - s/2.4, s - s/2.4);
           ctx.fillStyle = '#f0a500';
           ctx.beginPath();
-          ctx.arc(x + TILE_SIZE/2, y + TILE_SIZE/2, 6, 0, 2 * Math.PI);
+          ctx.arc(x + s/2, y + s/2, s/8, 0, 2 * Math.PI);
           ctx.fill();
         }
       }
@@ -499,85 +430,208 @@ const Sokoban: React.FC = () => {
     ctx.beginPath();
     ctx.strokeStyle = '#ad8b54';
     ctx.lineWidth = 1;
-    for (let i = 0; i <= COLS; i++) {
-      ctx.moveTo(i * TILE_SIZE, 0);
-      ctx.lineTo(i * TILE_SIZE, CANVAS_HEIGHT);
-      ctx.moveTo(0, i * TILE_SIZE);
-      ctx.lineTo(CANVAS_WIDTH, i * TILE_SIZE);
+    for (let i = 0; i <= currentCols; i++) {
+      ctx.moveTo(i * dynamicTileSize, 0);
+      ctx.lineTo(i * dynamicTileSize, canvas.height);
+      ctx.moveTo(0, i * dynamicTileSize);
+      ctx.lineTo(canvas.width, i * dynamicTileSize);
       ctx.stroke();
     }
 
     // 胜利特效
-    if (showLevelUp) {
+    if (isWin && showLevelUp) {
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      ctx.font = 'bold 28px monospace';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = `bold ${Math.min(28, dynamicTileSize * 1.5)}px monospace`;
       ctx.fillStyle = '#ffd966';
       ctx.shadowBlur = 10;
       ctx.shadowColor = '#ffaa00';
-      const msg = `✨ 通关！进入第 ${levelIndex + 2} 关 ✨`;
-      ctx.fillText(msg, CANVAS_WIDTH/2 - ctx.measureText(msg).width/2, CANVAS_HEIGHT/2);
+      const currentLevelNum = levelIndex + 1;
+      const totalLevels = levels.length;
+      const msg = currentLevelNum >= totalLevels
+        ? `✨ 恭喜通关！ ✨`
+        : `✨ 通关！进入第 ${currentLevelNum + 1}/${totalLevels} 关 ✨`;
+      ctx.fillText(msg, canvas.width/2 - ctx.measureText(msg).width/2, canvas.height/2);
       ctx.shadowBlur = 0;
     }
-  }, [showLevelUp, levelIndex]);
+  }, [gameState, showLevelUp, levelIndex, levels.length]);
 
-  // 游戏循环
+  // 同步 UI 到 canvas
   useEffect(() => {
-    const loop = () => {
-      render();
-      animationIdRef.current = requestAnimationFrame(loop);
-    };
-    animationIdRef.current = requestAnimationFrame(loop);
-    return () => {
-      if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
-    };
-  }, [render]);
+    renderCanvas();
+  }, [gameState, renderCanvas]);
+
+  // 加载关卡
+  const loadLevel = useCallback((index: number) => {
+    if (levels.length === 0) return;
+
+    const levelData = levels[index % levels.length];
+    const rawMap = levelData.map.map(row => [...row]);
+    const currentRows = rawMap.length;
+    const currentCols = rawMap[0].length;
+
+    setRows(currentRows);
+    setCols(currentCols);
+
+    const newState = engineRef.current.loadLevel(rawMap);
+    setGameState(newState);
+    setLevelIndex(index);
+    setShowLevelUp(false);
+    winProcessingRef.current = false;
+    updateCanUndo();
+  }, [levels, updateCanUndo]);
+
+  // 处理胜利
+  const handleWinIfNeeded = useCallback((newState: GameState) => {
+    if (newState.isWin && !winProcessingRef.current) {
+      winProcessingRef.current = true;
+      setShowLevelUp(true);
+
+      setTimeout(() => {
+        setShowLevelUp(false);
+        const nextIndex = levelIndex + 1;
+        if (nextIndex < levels.length) {
+          loadLevel(nextIndex);
+        }
+        winProcessingRef.current = false;
+        updateCanUndo();
+      }, 1500);
+    }
+  }, [levelIndex, levels.length, loadLevel, updateCanUndo]);
+
+  // 移动
+  const tryMove = useCallback((dx: number, dy: number) => {
+    const result = engineRef.current.move(dx, dy);
+    if (result.success && result.newState) {
+      setGameState(result.newState);
+      handleWinIfNeeded(result.newState);
+      updateCanUndo();
+    }
+  }, [handleWinIfNeeded, updateCanUndo]);
+
+  // 撤销
+  const undo = useCallback(() => {
+    const newState = engineRef.current.undo();
+    if (newState) {
+      setGameState(newState);
+      setShowLevelUp(false);
+      updateCanUndo();
+    }
+  }, [updateCanUndo]);
+
+  // 重置
+  const resetLevel = useCallback(() => {
+    const levelData = levels[levelIndex];
+    const rawMap = levelData.map.map(row => [...row]);
+    const newState = engineRef.current.reset(rawMap);
+    setGameState(newState);
+    setShowLevelUp(false);
+    winProcessingRef.current = false;
+    updateCanUndo();
+  }, [levelIndex, levels, updateCanUndo]);
+
+  // 上一关
+  const prevLevel = useCallback(() => {
+    if (levelIndex > 0) {
+      loadLevel(levelIndex - 1);
+    }
+  }, [levelIndex, loadLevel]);
+
+  // 下一关
+  const nextLevel = useCallback(() => {
+    if (levelIndex + 1 < levels.length) {
+      loadLevel(levelIndex + 1);
+    }
+  }, [levelIndex, levels.length, loadLevel]);
+
+  // 保存游戏
+  const saveGame = useCallback(() => {
+    try {
+      const savedState: SavedGameState = {
+        levelIndex,
+        gameState: engineRef.current.getSnapshot(),
+        rows,
+        cols,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem('sokoban_saved_game', JSON.stringify(savedState));
+      setHasSavedGame(true);
+    } catch (error) {
+      console.error('保存失败:', error);
+    }
+  }, [levelIndex, rows, cols]);
+
+  // 加载存档
+  const loadGame = useCallback(() => {
+    try {
+      const savedData = localStorage.getItem('sokoban_saved_game');
+      if (!savedData) return;
+
+      const saved: SavedGameState = JSON.parse(savedData);
+
+      if (!saved.gameState || !saved.gameState.map || !Array.isArray(saved.gameState.map)) {
+        localStorage.removeItem('sokoban_saved_game');
+        setHasSavedGame(false);
+        return;
+      }
+
+      setRows(saved.rows);
+      setCols(saved.cols);
+      setLevelIndex(saved.levelIndex);
+      setShowLevelUp(false);
+      setHasSavedGame(true);
+      winProcessingRef.current = false;
+
+      const restoredState = engineRef.current.restoreState(saved.gameState);
+      setGameState(restoredState);
+      updateCanUndo();
+    } catch (error) {
+      console.error('加载失败:', error);
+      localStorage.removeItem('sokoban_saved_game');
+      setHasSavedGame(false);
+    }
+  }, [updateCanUndo]);
 
   // 键盘事件
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowUp') {
-        tryMove(0, -1);
-        e.preventDefault();
-      } else if (e.key === 'ArrowDown') {
-        tryMove(0, 1);
-        e.preventDefault();
-      } else if (e.key === 'ArrowLeft') {
-        tryMove(-1, 0);
-        e.preventDefault();
-      } else if (e.key === 'ArrowRight') {
-        tryMove(1, 0);
-        e.preventDefault();
-      } else if (e.key === 'r' || e.key === 'R') {
-        resetLevel();
-        e.preventDefault();
-      }
+      if (e.repeat) return;
+
+      if (e.key === 'ArrowUp') { tryMove(0, -1); e.preventDefault(); }
+      else if (e.key === 'ArrowDown') { tryMove(0, 1); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft') { tryMove(-1, 0); e.preventDefault(); }
+      else if (e.key === 'ArrowRight') { tryMove(1, 0); e.preventDefault(); }
+      else if (e.key === 'r' || e.key === 'R') { resetLevel(); e.preventDefault(); }
+      else if (e.key === 'z' || e.key === 'Z') { undo(); e.preventDefault(); }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [tryMove, resetLevel]);
+  }, [tryMove, resetLevel, undo]);
 
-  // 触摸屏支持
+  // 窗口大小适配
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
+    const handleResize = () => {
+      renderCanvas();
     };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [renderCanvas]);
 
-    canvas.addEventListener('touchstart', handleTouchStart);
-    return () => canvas.removeEventListener('touchstart', handleTouchStart);
-  }, []);
-
-  // 初始化 - 使用 ref 确保只执行一次
+  // 初始化 - 使用 ref 和 setTimeout 避免在 effect 中同步调用 setState
   useEffect(() => {
-    if (!isInitializedRef.current) {
+    if (!isInitializedRef.current && levels.length > 0 && gameState.map.length === 0) {
       isInitializedRef.current = true;
-      loadLevel(0);
+      setTimeout(() => {
+        loadLevel(0);
+      }, 0);
     }
-  }, [loadLevel]);
+  }, [levels, gameState.map.length, loadLevel]);
+
+  const currentLevel = levels[levelIndex];
+  const totalLevels = levels.length;
+  const isLastLevel = levelIndex + 1 >= totalLevels;
+  const isWin = gameState.isWin;
 
   return (
     <div className="sokoban-wrapper">
@@ -585,61 +639,51 @@ const Sokoban: React.FC = () => {
         <div className="sokoban-header">
           <div className="sokoban-stats">
             <div className="sokoban-level">
-              📦 第 {levelIndex + 1} / ∞ 关
+              📦 {currentLevel?.name || `第${levelIndex + 1}关`}
             </div>
-            <div className="sokoban-steps">
-              🚶 步数: {stepCount}
+            <div className="sokoban-level-info">
+              第 {levelIndex + 1} / {totalLevels} 关
             </div>
-            <div className="sokoban-targets">
-              🎯 剩余: {remainingTargets}
-            </div>
+            <div className="sokoban-steps">🚶 步数: {gameState.stepCount}</div>
+            <div className="sokoban-targets">🎯 剩余: {gameState.totalTargets - gameState.boxesOnTarget}</div>
+            <div className="sokoban-boxes">📦 箱子: {currentLevel?.boxes || 0}</div>
           </div>
         </div>
 
         <div className="sokoban-canvas-wrapper">
-          <canvas
-            ref={canvasRef}
-            width={CANVAS_WIDTH}
-            height={CANVAS_HEIGHT}
-            className="sokoban-canvas"
-          />
+          <canvas ref={canvasRef} className="sokoban-canvas" />
         </div>
 
         <div className="sokoban-controls">
           <div className="sokoban-direction-buttons">
-            <button onClick={() => tryMove(0, -1)} className="dir-btn">▲</button>
+            <button onClick={() => tryMove(0, -1)} className="dir-btn" disabled={isWin}>▲</button>
             <div className="dir-row">
-              <button onClick={() => tryMove(-1, 0)} className="dir-btn">◀</button>
-              <button onClick={() => tryMove(0, 1)} className="dir-btn">▼</button>
-              <button onClick={() => tryMove(1, 0)} className="dir-btn">▶</button>
+              <button onClick={() => tryMove(-1, 0)} className="dir-btn" disabled={isWin}>◀</button>
+              <button onClick={() => tryMove(0, 1)} className="dir-btn" disabled={isWin}>▼</button>
+              <button onClick={() => tryMove(1, 0)} className="dir-btn" disabled={isWin}>▶</button>
             </div>
           </div>
 
           <div className="sokoban-action-buttons">
+            <button onClick={undo} className="action-btn undo-btn" disabled={!canUndo || isWin}>
+              ↩️ 撤销
+            </button>
             <button onClick={prevLevel} className="action-btn" disabled={levelIndex === 0}>
               ◀ 上一关
             </button>
-            <button onClick={resetLevel} className="action-btn">
-              🔄 重置
-            </button>
-            <button onClick={nextLevel} className="action-btn">
+            <button onClick={resetLevel} className="action-btn">🔄 重置</button>
+            <button onClick={nextLevel} className="action-btn" disabled={isLastLevel}>
               下一关 ▶
             </button>
-            <button onClick={saveGame} className="action-btn save-btn">
-              💾 存档
-            </button>
-            <button
-              onClick={loadGame}
-              className="action-btn load-btn"
-              disabled={!hasSavedGame}
-            >
+            <button onClick={saveGame} className="action-btn save-btn">💾 存档</button>
+            <button onClick={loadGame} className="action-btn load-btn" disabled={!hasSavedGame}>
               📜 读档
             </button>
           </div>
         </div>
 
         <div className="sokoban-instructions">
-          🎮 方向键移动 | R 重置 | 将箱子推到⭐目标点即可过关
+          🎮 方向键移动 | Z 撤销 | R 重置 | 将箱子推到⭐目标点即可过关
         </div>
       </div>
     </div>

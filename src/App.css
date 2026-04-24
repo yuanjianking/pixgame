@@ -287,7 +287,6 @@ body {
 .game-canvas-area {
     position: relative;
     border-radius: 1.5rem;
-    padding: 20px;
 }
 
 .game-canvas-inner {
