@@ -3,6 +3,8 @@ import brickBreakerThumbnail from '../assets/BrickBreaker2D.png';
 import chineseChessThumbnail from '../assets/ChineseChess.png';
 import sokobanThumbnail from '../assets/Sokoban.png';
 import astroShooterThumbnail from '../assets/AstroShooter.png';
+import ironTankBattleThumbnail from '../assets/IronTankBattle.png';
+
 export const games: GameInfo[] = [
   {
     id: 'brick-breaker',
@@ -27,6 +29,12 @@ export const games: GameInfo[] = [
     name: '太空射击',
     thumbnail: astroShooterThumbnail,
     route: '/game/astro-shooter'
+  },
+  {
+    id: 'iron-tank-battle',
+    name: '坦克大战',
+    thumbnail: ironTankBattleThumbnail,
+    route: '/game/iron-tank-battle'
   }
 ];
 

@@ -7,6 +7,7 @@ export const gameComponents: Record<string, React.LazyExoticComponent<React.Comp
   'chinese-chess': lazy(() => import('./ChineseChess/ChineseChess')),
   'sokoban': lazy(() => import('./Sokoban/Sokoban')),
   'astro-shooter': lazy(() => import('./AstroShooter/AstroShooter')),
+  'iron-tank-battle': lazy(() => import('./IronTankBattle/IronTankBattle')),
 };
 
 // 根据游戏ID获取对应的游戏组件
