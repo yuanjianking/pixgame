@@ -4,6 +4,7 @@ import chineseChessThumbnail from '../assets/ChineseChess.png';
 import sokobanThumbnail from '../assets/Sokoban.png';
 import astroShooterThumbnail from '../assets/AstroShooter.png';
 import ironTankBattleThumbnail from '../assets/IronTankBattle.png';
+import rageRacerThumbnail from '../assets/RageRacer.png';
 
 export const games: GameInfo[] = [
   {
@@ -35,6 +36,12 @@ export const games: GameInfo[] = [
     name: '坦克大战',
     thumbnail: ironTankBattleThumbnail,
     route: '/game/iron-tank-battle'
+  },
+  {
+    id: 'rage-racer',
+    name: '暴力赛车',
+    thumbnail: rageRacerThumbnail,
+    route: '/game/rage-racer'
   }
 ];
 
