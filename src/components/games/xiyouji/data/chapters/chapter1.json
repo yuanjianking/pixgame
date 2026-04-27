@@ -1,0 +1,136 @@
+{
+  "id": 1,
+  "name": "灵根育孕源流出",
+  "title": "第一回 灵根育孕源流出",
+  "steps": [
+    {
+      "id": "prologue_1",
+      "type": "dialog",
+      "speaker": "旁白",
+      "text": "混沌未分天地乱，茫茫渺渺无人见。自从盘古破鸿蒙，开辟从兹清浊辨。"
+    },
+    {
+      "id": "prologue_2",
+      "type": "dialog",
+      "speaker": "旁白",
+      "text": "海外有一国土，名曰傲来国。国近大海，海中有一座名山，唤为花果山。"
+    },
+    {
+      "id": "prologue_3",
+      "type": "dialog",
+      "speaker": "旁白",
+      "text": "那座山正当顶上，有一块仙石。受天真地秀，日精月华，一日迸裂，产一石卵，化作一个石猴。"
+    },
+    {
+      "id": "monkey_born",
+      "type": "dialog",
+      "speaker": "旁白",
+      "text": "石猴（玩家）睁开眼睛，环顾四周，花果山上群猴嬉戏。"
+    },
+    {
+      "id": "monkey_speak_1",
+      "type": "dialog",
+      "speaker": "小猴",
+      "text": "咦？那是什么东西？他会走路！像个人似的！"
+    },
+    {
+      "id": "monkey_speak_2",
+      "type": "dialog",
+      "speaker": "通背猿猴",
+      "text": "这石猴是天地所生，将来必成大器。"
+    },
+    {
+      "id": "old_monkey_challenge",
+      "type": "dialog",
+      "speaker": "通背猿猴",
+      "text": "谁有本事钻进瀑布，寻个源头出来，又不伤身体，我们就拜他为王！"
+    },
+    {
+      "id": "monkey_accept",
+      "type": "dialog",
+      "speaker": "石猴",
+      "text": "我去！我去！"
+    },
+    {
+      "id": "water_curtain_minigame",
+      "type": "minigame",
+      "minigameType": "chapter1_water_curtain_jump"
+    },
+    {
+      "id": "cave_discovery",
+      "type": "dialog",
+      "speaker": "石猴",
+      "text": "原来是个好住处！石房、石床、石灶、石碗，样样俱全。"
+    },
+    {
+      "id": "cave_sign",
+      "type": "dialog",
+      "speaker": "旁白",
+      "text": "石碣上镌着：花果山福地，水帘洞洞天。"
+    },
+    {
+      "id": "become_king",
+      "type": "dialog",
+      "speaker": "众猴",
+      "text": "千岁大王！千岁大王！"
+    },
+    {
+      "id": "king_title",
+      "type": "reward",
+      "reward": {
+        "title": "美猴王"
+      }
+    },
+    {
+      "id": "enjoy_life",
+      "type": "dialog",
+      "speaker": "旁白",
+      "text": "美猴王领一群猿猴、猕猴、马猴等，分派了君臣佐使，朝游花果山，暮宿水帘洞，享乐天真。"
+    },
+    {
+      "id": "time_pass",
+      "type": "dialog",
+      "speaker": "旁白",
+      "text": "三五百载后，一日美猴王与群猴欢宴，忽然忧恼，堕下泪来。"
+    },
+    {
+      "id": "king_worry",
+      "type": "dialog",
+      "speaker": "美猴王",
+      "text": "我虽在欢喜之地，不得长生。将来年老血衰，暗中还有阎王老子管着，岂不枉生世界？"
+    },
+    {
+      "id": "old_monkey_answer",
+      "type": "dialog",
+      "speaker": "通背猿猴",
+      "text": "大王若是这般远虑，真所谓道心开发也！如今五虫之内，惟有三等名色，不伏阎王老子所管。"
+    },
+    {
+      "id": "king_ask",
+      "type": "dialog",
+      "speaker": "美猴王",
+      "text": "哪三等？"
+    },
+    {
+      "id": "old_monkey_answer2",
+      "type": "dialog",
+      "speaker": "通背猿猴",
+      "text": "佛、仙、神圣三者，可以躲过轮回，不生不灭。"
+    },
+    {
+      "id": "king_decision",
+      "type": "dialog",
+      "speaker": "美猴王",
+      "text": "我明日就下山，云游海角，远涉天涯，务必访此三者，学一个长生不老！"
+    },
+    {
+      "id": "chapter_complete",
+      "type": "chapter_complete"
+    }
+  ],
+  "rewards": {
+    "title": "美猴王",
+    "unlockNextChapter": true
+  },
+  "nextChapterId": 2
+}
