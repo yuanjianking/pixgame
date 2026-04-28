@@ -17,7 +17,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [HuaguoshanScene, BootScene, MenuScene, OpeningScene, WaterCurtainCaveScene,TestScene,],
+  scene: [BootScene, MenuScene, OpeningScene, HuaguoshanScene, WaterCurtainCaveScene,TestScene,],
   physics: {
     default: 'arcade',
     arcade: {
