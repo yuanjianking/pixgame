@@ -5,17 +5,19 @@ import { WuKong } from '../characters/player/WuKong';
 import { DaMaHou } from '../characters/npc/DaMaHou';
 import { SmallMonkey } from '../characters/npc/SmallMonkey';
 import type { BaseNPC } from '../characters/npc/BaseNPC';
+import { DialogBox } from '../ui/DialogBox';
 
 export default class HuaguoshanScene extends Phaser.Scene {
   private wukong!: WuKong;
   private obstacles: { x: number; y: number; width: number; height: number }[] = [];
   private caveArea!: { x: number; y: number; width: number; height: number };
   private isEnteringCave: boolean = false;
-
+  private dialogBox!: DialogBox;
   // NPC
   private npcs: BaseNPC[] = [];
-  private isDialogActive: boolean = false;
-
+  // 对话框防抖
+  private lastJPressTime: number = 0;
+  private jPressCooldown: number = 200;
   constructor() {
     super({ key: 'HuaguoshanScene' });
   }
@@ -58,40 +60,66 @@ export default class HuaguoshanScene extends Phaser.Scene {
     this.wukong.setPosition(playerX, playerY);
     this.wukong.setCollisionRadius(15);
 
+     this.dialogBox = new DialogBox(this);
+
     // ==================== 添加大马猴 ====================
-    const daMaHou = new DaMaHou(this, 8 * 40, 10 * 40);
+    const daMaHou = new DaMaHou(this, 8 * 40, 10 * 40,'赤尻马猴',[
+      '大王，您这口刀着实寒酸了些。',
+      '咱花果山四万七千猴众，连件像样的兵器都没有。',
+      '我听闻那东海龙宫里，藏着大禹治水留下的神珍铁，大王何不去走一遭？',
+    ],this.dialogBox);
     this.npcs.push(daMaHou);
     this.obstacles.push(daMaHou.getCollisionRect());
 
     // ==================== 添加5只小猴子 ====================
     // 小猴子1 - 右上角
-    const monkey1 = new SmallMonkey(this, 14 * 40, 6 * 40);
+    const monkey1 = new SmallMonkey(this, 14 * 40, 6 * 40, '果果',[
+     '大王吃桃不？我刚摘的！',
+     '山后面的果子熟啦！',
+     '果果要把最好吃的留给大王！',
+    ],this.dialogBox);
     this.npcs.push(monkey1);
     this.obstacles.push(monkey1.getCollisionRect());
 
     // 小猴子2 - 右下角
-    const monkey2 = new SmallMonkey(this, 15 * 40, 12 * 40);
+    const monkey2 = new SmallMonkey(this, 15 * 40, 12 * 40, '聪聪',[
+      '大王，我发现山下有动静！',
+      '聪聪帮大王盯着呢！',
+      '我用树叶做了个小扇子，大王热不热？',
+    ],this.dialogBox);
     this.npcs.push(monkey2);
     this.obstacles.push(monkey2.getCollisionRect());
 
     // 小猴子3 - 左上角
-    const monkey3 = new SmallMonkey(this, 6 * 40, 4 * 40);
+    const monkey3 = new SmallMonkey(this, 6 * 40, 4 * 40, '毛毛',[
+      '大王摸摸头～叽叽～',
+      '毛毛好想大王呀！',
+      '我帮大王挠痒痒！',
+    ],this.dialogBox);
     this.npcs.push(monkey3);
     this.obstacles.push(monkey3.getCollisionRect());
 
     // 小猴子4 - 左下角桃林附近
-    const monkey4 = new SmallMonkey(this, 5 * 40, 11 * 40);
+    const monkey4 = new SmallMonkey(this, 5 * 40, 11 * 40, '壮壮',[
+      '大王！我把石头搬开了！',
+      '壮壮保护大家！',
+      '嘿嘿，大王需要帮忙吗？',
+    ],this.dialogBox);
     this.npcs.push(monkey4);
     this.obstacles.push(monkey4.getCollisionRect());
 
     // 小猴子5 - 水帘洞附近
-    const monkey5 = new SmallMonkey(this, 5 * 40, 8 * 40);
+    const monkey5 = new SmallMonkey(this, 5 * 40, 8 * 40, ' 蹦蹦',[
+      '叽叽叽！大王回来啦！',
+      '蹦蹦我今天抓了3只蚂蚱！',
+      '大王看我新学的翻跟头！',
+    ],this.dialogBox);
     this.npcs.push(monkey5);
     this.obstacles.push(monkey5.getCollisionRect());
   }
 
   update() {
-    if (this.wukong && !this.isEnteringCave && !this.isDialogActive) {
+    if (this.wukong && !this.isEnteringCave) {
       this.wukong.updateFromControllerWithCollision(this.obstacles);
       this.checkEnterCave();
       this.checkNPCInteraction();
@@ -125,22 +153,25 @@ export default class HuaguoshanScene extends Phaser.Scene {
   }
 
   private checkNPCInteraction(): void {
+    // 如果对话框激活，不处理NPC交互
+    if (this.dialogBox.isDialogActive()) return;
+
     const jKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.J);
     if (jKey && Phaser.Input.Keyboard.JustDown(jKey)) {
+      // 防抖
+      const now = Date.now();
+      if (now - this.lastJPressTime < this.jPressCooldown) {
+        console.log('[checkNPCInteraction] 防抖，忽略');
+        return;
+      }
+      this.lastJPressTime = now;
+
       for (const npc of this.npcs) {
         const npcPos = npc.getPosition();
         const distance = Math.hypot(this.wukong.getX() - npcPos.x, this.wukong.getY() - npcPos.y);
 
         if (distance < 50) {
           npc.interact();
-          this.isDialogActive = true;
-
-          const checkDialog = setInterval(() => {
-            if (!npc.isDialogActive()) {
-              this.isDialogActive = false;
-              clearInterval(checkDialog);
-            }
-          }, 100);
           break;
         }
       }

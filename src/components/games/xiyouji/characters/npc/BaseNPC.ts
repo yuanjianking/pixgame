@@ -11,13 +11,13 @@ export abstract class BaseNPC {
   public x: number;
   public y: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, name: string, dialogues: string[]) {
+  constructor(scene: Phaser.Scene, x: number, y: number, name: string, dialogues: string[],  dialogBox: DialogBox) {
     this.scene = scene;
     this.x = x;
     this.y = y;
     this.name = name;
     this.dialogues = dialogues;
-    this.dialogBox = new DialogBox(scene);
+    this.dialogBox = dialogBox;
     this.sprite = this.createSprite();
   }
 
@@ -26,6 +26,10 @@ export abstract class BaseNPC {
 
   // 交互
   public interact(): void {
+     if (this.dialogBox.isDialogActive()) {
+      console.log('对话框已激活，其他猴子无法打断');
+      return;
+    }
     this.dialogBox.show(this.name, this.dialogues);
   }
 

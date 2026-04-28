@@ -1,6 +1,7 @@
 // npc/SmallMonkey.ts
 import * as Phaser from 'phaser';
 import { BaseNPC } from './BaseNPC';
+import type { DialogBox } from '../../ui/DialogBox';
 
 export class SmallMonkey extends BaseNPC {
   // 缩放系数
@@ -29,12 +30,8 @@ export class SmallMonkey extends BaseNPC {
   private pxFunc!: (v: number) => number;
   private pxwFunc!: (v: number) => number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, '小猴', [
-      '叽叽叽！',
-      '大王大王！',
-      '欢迎大王回来！'
-    ]);
+   constructor(scene: Phaser.Scene, x: number, y: number, name: string, dialogues: string[], dialogBox: DialogBox) {
+    super(scene, x, y, name, dialogues, dialogBox);
   }
 
   private px(v: number): number {

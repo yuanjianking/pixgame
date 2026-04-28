@@ -1,6 +1,7 @@
 // npc/DaMaHou.ts
 import * as Phaser from 'phaser';
 import { BaseNPC } from './BaseNPC';
+import type { DialogBox } from '../../ui/DialogBox';
 
 export class DaMaHou extends BaseNPC {
   private static readonly S = 0.5;
@@ -29,12 +30,8 @@ export class DaMaHou extends BaseNPC {
   private pxFunc!: (v: number) => number;
   private pxwFunc!: (v: number) => number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, '大马猴', [
-      '大王，您终于回来了！',
-      '大王，我们缺一件趁手的兵器啊！',
-      '听说东海龙宫有神兵利器，大王何不去看看？'
-    ]);
+  constructor(scene: Phaser.Scene, x: number, y: number, name: string, dialogues: string[], dialogBox: DialogBox) {
+    super(scene, x, y, name, dialogues, dialogBox);
   }
 
   private px(v: number): number {

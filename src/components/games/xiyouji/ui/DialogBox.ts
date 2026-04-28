@@ -32,19 +32,19 @@ export class DialogBox {
     this.container.setScrollFactor(0);
 
     // 背景
-    const boxBg = this.scene.add.rectangle(width / 2, height - 90, 600, 70, 0x000000, 0.9);
+    const boxBg = this.scene.add.rectangle(width / 2, height - 90, 600, 100, 0x000000, 0.9);
     boxBg.setStrokeStyle(2, 0xFFD700);
 
     // 顶部装饰线
     const topLine = this.scene.add.graphics();
     topLine.lineStyle(1, 0xFFD700);
     topLine.beginPath();
-    topLine.moveTo(width / 2 - 290, height - 120);
-    topLine.lineTo(width / 2 + 290, height - 120);
+    topLine.moveTo(width / 2 - 290, height - 130);
+    topLine.lineTo(width / 2 + 290, height - 130);
     topLine.strokePath();
 
     // 名字标签
-    const nameLabel = this.scene.add.text(width / 2 - 270, height - 105, name, {
+    const nameLabel = this.scene.add.text(width / 2 - 270, height - 120, name, {
       fontSize: '14px',
       color: '#FFD700',
       fontFamily: 'monospace',
@@ -99,7 +99,8 @@ export class DialogBox {
 
   // 关闭对话框
   public close(): void {
-    // 移除键盘监听器
+    console.log(`[DialogBox.close] 调用, 当前 isActive = ${this.isActive}`);
+
     if (this.keyHandler) {
       this.scene.input.keyboard?.off('keydown', this.keyHandler);
       this.keyHandler = null;
@@ -111,12 +112,17 @@ export class DialogBox {
       this.dialogText = null;
     }
 
-    this.isActive = false;
+    // 延迟重置，避免同一帧内的重复触发
+    this.scene.time.delayedCall(100, () => {
+      this.isActive = false;
+      console.log(`[DialogBox.close] 延迟设置 isActive = false`);
 
-    if (this.onCompleteCallback) {
-      this.onCompleteCallback();
-      this.onCompleteCallback = null;
-    }
+      if (this.onCompleteCallback) {
+        const callback = this.onCompleteCallback;
+        this.onCompleteCallback = null;
+        callback();
+      }
+    });
   }
 
   // 是否激活
