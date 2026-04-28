@@ -1,15 +1,24 @@
 import * as Phaser from 'phaser';
-import { WuKong } from '../characters/player/WuKong';
-// 想测试哪个角色，就导入哪个，注释掉其他的
-// import { BaJie } from './characters/BaJie';
-// import { ShaSeng } from './characters/ShaSeng';
-// import { TangSeng } from './characters/TangSeng';
-// import { BaiLongMa } from './characters/BaiLongMa';
 
+import { BaiLongMa } from '../characters/player/BaiLongMa';
 class TestScene extends Phaser.Scene {
   private characterGraphics!: Phaser.GameObjects.Graphics;
-  private character!: WuKong;  // 改成对应的角色类型
+  private character!: BaiLongMa;
   private nameText!: Phaser.GameObjects.Text;
+
+  // 移动相关
+  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private wasd!: {
+    up: Phaser.Input.Keyboard.Key;
+    down: Phaser.Input.Keyboard.Key;
+    left: Phaser.Input.Keyboard.Key;
+    right: Phaser.Input.Keyboard.Key;
+  };
+  private characterX: number = 0;
+  private characterY: number = 0;
+  private isMoving: boolean = false;
+  private walkCycle: number = 0;
+  private moveSpeed: number = 3;
 
   constructor() {
     super({ key: 'TestScene' });
@@ -24,23 +33,23 @@ class TestScene extends Phaser.Scene {
     bg.fillStyle(0x1a1a2e);
     bg.fillRect(0, 0, width, height);
 
-    // 中心点标记（便于观察位置）
-    const centerX = width / 2;
-    const centerY = height / 2;
-
     // 辅助网格
     this.addGrid();
 
     // 创建角色
     this.characterGraphics = this.add.graphics();
-    this.character = new WuKong(this.characterGraphics);  // 改成对应的角色
+    this.character = new BaiLongMa(this.characterGraphics);
 
-    // 在屏幕中心绘制角色
-    this.character.draw(centerX, centerY);
+    // 初始位置在屏幕中心
+    this.characterX = width / 2;
+    this.characterY = height / 2;
 
-    // 显示角色名称
-    this.nameText = this.add.text(centerX, centerY - 120, '孙悟空', {
-      fontSize: '28px',
+    // 绘制角色
+    this.character.draw(this.characterX, this.characterY);
+
+    // 显示角色名称 - 确保这行代码存在且没有被注释
+    this.nameText = this.add.text(this.characterX, this.characterY - 80, '测试角色', {
+      fontSize: '20px',
       color: '#FFD700',
       fontStyle: 'bold',
       fontFamily: 'Arial'
@@ -48,36 +57,75 @@ class TestScene extends Phaser.Scene {
     this.nameText.setOrigin(0.5);
 
     // 显示提示文字
-    const hint = this.add.text(centerX, height - 50, '按空SHIFT切换角色动画（移动/静止）', {
-      fontSize: '16px',
+    const hint = this.add.text(width / 2, height - 50, 'WASD 移动角色', {
+      fontSize: '14px',
       color: '#888888',
       fontFamily: 'Arial'
     });
     hint.setOrigin(0.5);
 
-    // 动画控制
-    let isMoving = false;
-    let walkCycle = 0;
+    // 初始化键盘控制
+    this.cursors = this.input.keyboard!.createCursorKeys();
+    this.wasd = {
+      up: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      down: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+      left: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+      right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+    };
+  }
 
-    // 空格键切换动画
-    this.input.keyboard!.on('keydown-SHIFT', () => {
-      isMoving = !isMoving;
-    });
+  update() {
+    // 确保 nameText 存在
+    if (!this.nameText) return;
 
-    // 定时更新动画
-    this.time.addEvent({
-      delay: 50,
-      callback: () => {
-        if (isMoving) {
-          walkCycle += 0.15;
-        } else {
-          walkCycle = 0;
-        }
-        this.character.updateAnimation(isMoving, walkCycle);
-        this.character.draw(centerX, centerY);
-      },
-      loop: true
-    });
+    // 重置移动状态
+    let moveX = 0;
+    let moveY = 0;
+
+    // 检测 WASD 和 方向键
+    if (this.wasd?.left?.isDown || this.cursors?.left?.isDown) {
+      moveX = -1;
+    } else if (this.wasd?.right?.isDown || this.cursors?.right?.isDown) {
+      moveX = 1;
+    }
+
+    if (this.wasd?.up?.isDown || this.cursors?.up?.isDown) {
+      moveY = -1;
+    } else if (this.wasd?.down?.isDown || this.cursors?.down?.isDown) {
+      moveY = 1;
+    }
+
+    // 更新移动状态
+    this.isMoving = (moveX !== 0 || moveY !== 0);
+
+    if (this.isMoving) {
+      if (moveX !== 0 && moveY !== 0) {
+        moveX *= 0.707;
+        moveY *= 0.707;
+      }
+
+      this.characterX += moveX * this.moveSpeed;
+      this.characterY += moveY * this.moveSpeed;
+
+      const bounds = 50;
+      this.characterX = Math.max(bounds, Math.min(this.cameras.main.width - bounds, this.characterX));
+      this.characterY = Math.max(bounds + 40, Math.min(this.cameras.main.height - bounds, this.characterY));
+
+      this.walkCycle += 0.15;
+    } else {
+      this.walkCycle = 0;
+    }
+
+    // 更新角色
+    if (this.character) {
+      this.character.updateAnimation(this.isMoving, this.walkCycle);
+      this.character.draw(this.characterX, this.characterY);
+    }
+
+    // 更新名字位置
+    if (this.nameText) {
+      this.nameText.setPosition(this.characterX, this.characterY - 80);
+    }
   }
 
   private addGrid() {
@@ -86,7 +134,6 @@ class TestScene extends Phaser.Scene {
     const grid = this.add.graphics();
     grid.lineStyle(1, 0x333344, 0.3);
 
-    // 绘制网格线
     for (let x = 0; x < width; x += 50) {
       grid.beginPath();
       grid.moveTo(x, 0);
@@ -100,7 +147,6 @@ class TestScene extends Phaser.Scene {
       grid.strokePath();
     }
 
-    // 中心十字线
     grid.lineStyle(2, 0xFF6666, 0.5);
     grid.beginPath();
     grid.moveTo(width / 2, 0);

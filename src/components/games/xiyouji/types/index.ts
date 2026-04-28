@@ -23,3 +23,20 @@ export  interface SaveData {
   inventory: string[];
   // 添加其他需要的字段
 }
+
+export interface NPC {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  dialogues: string[];
+  hasQuest?: boolean;
+  questDialog?: string;
+}
+
+export interface PlayerState {
+  x: number;
+  y: number;
+  hasTask: boolean;
+  taskDestination?: string;
+}

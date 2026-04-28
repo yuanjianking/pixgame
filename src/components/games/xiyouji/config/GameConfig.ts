@@ -3,7 +3,9 @@ import * as Phaser from 'phaser';
 import TestScene from '../scenes/TestScene';
 import BootScene from '../scenes/BootScene';
 import MenuScene from '../scenes/MenuScene';
-import GameScene from '../scenes/GameScene';
+import OpeningScene from '../scenes/OpeningScene';
+import HuaguoshanScene from '../scenes/HuaguoshanScene';
+import WaterCurtainCaveScene from '../scenes/WaterCurtainCaveScene';
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -15,7 +17,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [BootScene, MenuScene, GameScene, TestScene],
+  scene: [HuaguoshanScene, BootScene, MenuScene, OpeningScene, WaterCurtainCaveScene,TestScene,],
   physics: {
     default: 'arcade',
     arcade: {

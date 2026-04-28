@@ -5,7 +5,7 @@ import sokobanThumbnail from '../assets/Sokoban.png';
 import astroShooterThumbnail from '../assets/AstroShooter.png';
 import ironTankBattleThumbnail from '../assets/IronTankBattle.png';
 import rageRacerThumbnail from '../assets/RageRacer.png';
-import xiyoujiThumbnail from '../assets/RageRacer.png';
+import xiyoujiThumbnail from '../assets/XuYouJi.png';
 
 export const games: GameInfo[] = [
   {
