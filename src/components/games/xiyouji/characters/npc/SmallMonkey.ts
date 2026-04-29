@@ -4,9 +4,7 @@ import { BaseNPC } from './BaseNPC';
 import type { DialogBox } from '../../ui/DialogBox';
 
 export class SmallMonkey extends BaseNPC {
-  // 缩放系数
-  private static readonly S = 0.5;
-  private static readonly WIDTH_SCALE = 1.1;
+
 
   // 颜色常量
   private static readonly COLORS = {

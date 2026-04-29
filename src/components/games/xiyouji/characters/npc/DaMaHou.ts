@@ -4,8 +4,6 @@ import { BaseNPC } from './BaseNPC';
 import type { DialogBox } from '../../ui/DialogBox';
 
 export class DaMaHou extends BaseNPC {
-  private static readonly S = 0.5;
-  private static readonly WIDTH_SCALE = 1.2;
 
   private static readonly COLORS = {
     SKIN_LIGHT: 0xD4A06A,

@@ -1,14 +1,11 @@
-export class BaJie {
-  private graphics: Phaser.GameObjects.Graphics;
-  private isMoving: boolean = false;
-  private walkCycle: number = 0;
+import { BaseCharacter } from "./BaseCharacter";
+
+export class BaJie extends BaseCharacter{
+
   private blinkTimer: number = 0;
   private attackTimer: number = 0;
   private isAttacking: boolean = false;
 
-  // 缩放系数（与悟空保持一致，但更胖）
-  private readonly S = 0.4;
-  private readonly WIDTH_SCALE = 1.35;  // 猪八戒最宽，突出肥胖
 
   private readonly COLORS = {
     SKIN_LIGHT: 0xE8A0A0,
@@ -33,8 +30,8 @@ export class BaJie {
     EYE: 0x1A1A2E
   };
 
-  constructor(graphics: Phaser.GameObjects.Graphics) {
-    this.graphics = graphics;
+  constructor(graphics: Phaser.GameObjects.Graphics, scene?: Phaser.Scene) {
+    super(graphics, true, scene);
   }
 
   updateAnimation(isMoving: boolean, walkCycle: number, isAttacking: boolean = false) {

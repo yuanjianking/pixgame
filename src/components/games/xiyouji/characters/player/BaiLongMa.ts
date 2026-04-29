@@ -3,19 +3,13 @@
 // 白龙马：骏马形态、优雅、白色、缰绳、马鞍
 // 版本：宽高比 1:1
 
-export class BaiLongMa {
-  private graphics: Phaser.GameObjects.Graphics;
-  private isMoving: boolean = false;
-  private walkCycle: number = 0;
+import { BaseCharacter } from "./BaseCharacter";
+
+export class BaiLongMa extends BaseCharacter{
   private blinkTimer: number = 0;
   private attackTimer: number = 0;
   private isAttacking: boolean = false;
 
-  // 缩放系数（马身较长，宽度稍大）
-  private readonly S = 0.4;
-  private readonly WIDTH_SCALE = 1.4;
-
-  // characters/BaiLongMa.ts - 在 COLORS 中添加 SILVER
 
   private readonly COLORS = {
     // 白马毛色
@@ -47,8 +41,8 @@ export class BaiLongMa {
     RIM: 0xFFAA66
   };
 
-  constructor(graphics: Phaser.GameObjects.Graphics) {
-    this.graphics = graphics;
+   constructor(graphics: Phaser.GameObjects.Graphics, scene?: Phaser.Scene) {
+    super(graphics, true, scene);
   }
 
   updateAnimation(isMoving: boolean, walkCycle: number, isAttacking: boolean = false) {

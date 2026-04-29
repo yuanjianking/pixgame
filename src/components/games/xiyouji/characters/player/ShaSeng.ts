@@ -1,19 +1,10 @@
-// characters/ShaSeng.ts
-// 风格：90年代光荣SRPG战棋立绘风
-// 沙僧：高大魁梧、光头、络腮胡、月牙铲
-// 版本：宽高比 1:1
+import { BaseCharacter } from "./BaseCharacter";
 
-export class ShaSeng {
-  private graphics: Phaser.GameObjects.Graphics;
-  private isMoving: boolean = false;
-  private walkCycle: number = 0;
+export class ShaSeng  extends BaseCharacter {
+
   private blinkTimer: number = 0;
   private attackTimer: number = 0;
   private isAttacking: boolean = false;
-
-  // 缩放系数（与悟空/唐僧保持一致）
-  private readonly S = 0.4;
-  private readonly WIDTH_SCALE = 1.25;  // 沙僧更宽，突出魁梧
 
   private readonly COLORS = {
     SKIN_LIGHT: 0xD48A4A,
@@ -37,8 +28,8 @@ export class ShaSeng {
     EYE: 0x1A1A2E
   };
 
-  constructor(graphics: Phaser.GameObjects.Graphics) {
-    this.graphics = graphics;
+  constructor(graphics: Phaser.GameObjects.Graphics, scene?: Phaser.Scene) {
+    super(graphics, true, scene);
   }
 
   updateAnimation(isMoving: boolean, walkCycle: number, isAttacking: boolean = false) {

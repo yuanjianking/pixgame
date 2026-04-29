@@ -10,7 +10,9 @@ export abstract class BaseNPC {
   protected dialogues: string[];
   public x: number;
   public y: number;
-
+  // 缩放系数
+  protected static readonly S = 0.6;
+  protected static readonly WIDTH_SCALE = 1.1;
   constructor(scene: Phaser.Scene, x: number, y: number, name: string, dialogues: string[],  dialogBox: DialogBox) {
     this.scene = scene;
     this.x = x;

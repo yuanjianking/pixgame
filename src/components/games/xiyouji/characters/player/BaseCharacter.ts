@@ -24,6 +24,10 @@ export abstract class BaseCharacter {
 
   protected collisionRadius: number = 15;
 
+  // 缩放系数（调整为更宽的比例）
+  protected readonly S = 0.6;
+  protected readonly WIDTH_SCALE = 1.2;  // 宽度额外放大
+
   // 可选：使用控制器
   protected movementController?: MovementController;
 

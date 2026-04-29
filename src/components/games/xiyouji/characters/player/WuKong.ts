@@ -5,9 +5,6 @@ export class WuKong  extends BaseCharacter {
   private attackTimer: number = 0;
   private isAttacking: boolean = false;
 
-  // 缩放系数（调整为更宽的比例）
-  private readonly S = 0.4;
-  private readonly WIDTH_SCALE = 1.2;  // 宽度额外放大
 
   // SRPG固定色调板
   private readonly COLORS = {
