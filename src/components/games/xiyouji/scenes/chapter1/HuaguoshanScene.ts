@@ -1,11 +1,11 @@
 // scenes/HuaguoshanScene.ts
 import * as Phaser from 'phaser';
-import { GameMap } from '../maps/TerrainMap';
-import { WuKong } from '../characters/player/WuKong';
-import { DaMaHou } from '../characters/npc/DaMaHou';
-import { SmallMonkey } from '../characters/npc/SmallMonkey';
-import type { BaseNPC } from '../characters/npc/BaseNPC';
-import { DialogBox } from '../ui/DialogBox';
+import { GameMap } from '../../maps/TerrainMap';
+import { WuKong } from '../../characters/player/WuKong';
+import { DaMaHou } from '../../characters/npc/DaMaHou';
+import { SmallMonkey } from '../../characters/npc/SmallMonkey';
+import type { BaseNPC } from '../../characters/npc/BaseNPC';
+import { DialogBox } from '../../ui/DialogBox';
 
 export default class HuaguoshanScene extends Phaser.Scene {
   private wukong!: WuKong;
@@ -123,6 +123,7 @@ export default class HuaguoshanScene extends Phaser.Scene {
       this.wukong.updateFromControllerWithCollision(this.obstacles);
       this.checkEnterCave();
       this.checkNPCInteraction();
+      this.checkLeaveMap();
     }
   }
 
@@ -175,6 +176,24 @@ export default class HuaguoshanScene extends Phaser.Scene {
           break;
         }
       }
+    }
+  }
+
+  private checkLeaveMap(): void {
+    const playerX = this.wukong.getX();
+    const playerY = this.wukong.getY();
+    const radius = 15;
+
+    const isTouchingLeft = playerX - radius <= 0;
+    const isTouchingRight = playerX + radius >= 800;
+    const isTouchingTop = playerY - radius <= 0;
+    const isTouchingBottom = playerY + radius >= 600;
+
+    if (isTouchingLeft || isTouchingRight || isTouchingTop || isTouchingBottom) {
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        this.scene.start('WorldMapScene', { returnNodeId: 'huaguoshan' });
+      });
     }
   }
 

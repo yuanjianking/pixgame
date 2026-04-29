@@ -1,6 +1,6 @@
 // scenes/WaterCurtainCaveScene.ts
 import * as Phaser from 'phaser';
-import { WuKong } from '../characters/player/WuKong';
+import { WuKong } from '../../characters/player/WuKong';
 
 export default class WaterCurtainCaveScene extends Phaser.Scene {
   private wukong!: WuKong;

@@ -9,16 +9,20 @@ export default class BootScene extends Phaser.Scene {
   preload() {
     // 可以在这里加载资源
     console.log('BootScene: 加载资源...');
+
   }
 
   create() {
     console.log('BootScene: 资源加载完成');
 
-    // 检查是否有存档
-    const hasSaveData = this.checkSaveData();
+    this.scene.launch('WorldMapScene');
+    // 等待一帧让地图生成完成
+    this.scene.get('WorldMapScene').events.once('mapReady', () => {
+      this.scene.stop('WorldMapScene');
+      const hasSaveData = this.checkSaveData();
+      this.scene.start('MenuScene', { hasSaveData });
+    });
 
-    // 进入菜单场景
-    this.scene.start('MenuScene', { hasSaveData });
   }
 
   private checkSaveData(): boolean {

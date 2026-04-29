@@ -17,9 +17,11 @@ export class GameMap {
   private container: Phaser.GameObjects.Container;
   private titleText!: Phaser.GameObjects.Text;
 
-  constructor(scene: Phaser.Scene, name: string = '场景名称') {
+  constructor(scene: Phaser.Scene, name: string = '场景名称',mapWidth: number = 20, mapHeight: number = 15) {
     this.scene = scene;
     this.name = name;
+    this.mapWidth = mapWidth;
+    this.mapHeight = mapHeight;
     this.container = scene.add.container(0, 0);
     this.generate();
   }

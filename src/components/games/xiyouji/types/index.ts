@@ -40,3 +40,16 @@ export interface PlayerState {
   hasTask: boolean;
   taskDestination?: string;
 }
+
+// 世界地图相关类型
+export interface WorldNode {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  region: string;
+  isUnlocked: boolean;
+  description: string;
+  icon: 'mountain' | 'temple' | 'water' | 'city' | 'cave' | 'desert' | 'forest' | 'fire' ;
+  scene: string;  // 对应的场景名称
+}
