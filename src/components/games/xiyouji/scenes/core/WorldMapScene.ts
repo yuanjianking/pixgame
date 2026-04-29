@@ -42,6 +42,8 @@ export default class WorldMapScene extends Phaser.Scene {
     this.cameras.main.setZoom(0.6);
     this.cameras.main.startFollow(this.wukong, true, 0.1, 0.1);
 
+
+
     this.createMinimap();
   }
 
@@ -1171,29 +1173,34 @@ export default class WorldMapScene extends Phaser.Scene {
     const x = screenWidth - minimapWidth;
     const y = -180;
 
-    // 1. 创建简化版地图纹理
-    const minimapGraphics = this.add.graphics();
+    // // 1. 创建简化版地图纹理
+    // const minimapGraphics = this.add.graphics();
 
-    // 背景
-    minimapGraphics.fillStyle(0x2a2a2a, 1);
-    minimapGraphics.fillRect(0, 0, this.mapWidth, this.mapHeight);
+    // // 背景
+    // minimapGraphics.fillStyle(0x2a2a2a, 1);
+    // minimapGraphics.fillRect(0, 0, this.mapWidth, this.mapHeight);
 
-    // 绘制节点
-    WorldNodesData.forEach(node => {
-      minimapGraphics.fillStyle(0xFFD700, 1);
-      minimapGraphics.fillCircle(node.x, node.y, 80);
-    });
+    // // 绘制节点
+    // WorldNodesData.forEach(node => {
+    //   minimapGraphics.fillStyle(0xFFD700, 1);
+    //   minimapGraphics.fillCircle(node.x, node.y, 80);
+    // });
 
-    // 生成纹理
-    minimapGraphics.generateTexture('minimapBg', this.mapWidth, this.mapHeight);
-    minimapGraphics.destroy();
+    // // 生成纹理
+    // minimapGraphics.generateTexture('minimapBg', this.mapWidth, this.mapHeight);
+    // minimapGraphics.destroy();
 
     // 2. 添加小地图图片
-    this.add.image(x, y, 'minimapBg')
+    this.add.image(x, y, 'worldMapBg')
       .setOrigin(0)
       .setDisplaySize(minimapWidth, minimapHeight)
       .setDepth(18)
-      .setScrollFactor(0);  // 不随摄像机滚动
+      .setScrollFactor(0);
+
+    const overlay = this.add.rectangle(x, y, minimapWidth, minimapHeight, 0x000000, 0.5);
+    overlay.setOrigin(0);
+    overlay.setDepth(19);
+    overlay.setScrollFactor(0);
 
     // 3. 玩家标记
     this.minimapPlayerMarker = this.add.graphics();
