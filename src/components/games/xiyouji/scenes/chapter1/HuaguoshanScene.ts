@@ -6,6 +6,7 @@ import { DaMaHou } from '../../characters/npc/DaMaHou';
 import { SmallMonkey } from '../../characters/npc/SmallMonkey';
 import type { BaseNPC } from '../../characters/npc/BaseNPC';
 import { DialogBox } from '../../ui/DialogBox';
+import { InputJController } from '../../controllers/InputJController';
 
 export default class HuaguoshanScene extends Phaser.Scene {
   private wukong!: WuKong;
@@ -13,17 +14,22 @@ export default class HuaguoshanScene extends Phaser.Scene {
   private caveArea!: { x: number; y: number; width: number; height: number };
   private isEnteringCave: boolean = false;
   private dialogBox!: DialogBox;
+  private isExiting = false;
   // NPC
   private npcs: BaseNPC[] = [];
   // 对话框防抖
   private lastJPressTime: number = 0;
   private jPressCooldown: number = 200;
+
+  private inputJController!: InputJController;
+
   constructor() {
     super({ key: 'HuaguoshanScene' });
   }
 
   init() {
     this.isEnteringCave = false;
+    this.isExiting = false
     this.obstacles = [];
   }
 
@@ -116,13 +122,18 @@ export default class HuaguoshanScene extends Phaser.Scene {
     ],this.dialogBox);
     this.npcs.push(monkey5);
     this.obstacles.push(monkey5.getCollisionRect());
+
+    this.inputJController = new InputJController(this);
+    this.inputJController.onInteract = () => {
+          this.checkNPCInteraction();
+      };
   }
 
   update() {
     if (this.wukong && !this.isEnteringCave) {
       this.wukong.updateFromControllerWithCollision(this.obstacles);
       this.checkEnterCave();
-      this.checkNPCInteraction();
+      //this.checkNPCInteraction();
       this.checkLeaveMap();
     }
   }
@@ -156,40 +167,57 @@ export default class HuaguoshanScene extends Phaser.Scene {
   private checkNPCInteraction(): void {
     // 如果对话框激活，不处理NPC交互
     if (this.dialogBox.isDialogActive()) return;
+    for (const npc of this.npcs) {
+      const npcPos = npc.getPosition();
+      const distance = Math.hypot(this.wukong.getX() - npcPos.x, this.wukong.getY() - npcPos.y);
 
-    const jKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.J);
-    if (jKey && Phaser.Input.Keyboard.JustDown(jKey)) {
-      // 防抖
-      const now = Date.now();
-      if (now - this.lastJPressTime < this.jPressCooldown) {
-        console.log('[checkNPCInteraction] 防抖，忽略');
-        return;
-      }
-      this.lastJPressTime = now;
-
-      for (const npc of this.npcs) {
-        const npcPos = npc.getPosition();
-        const distance = Math.hypot(this.wukong.getX() - npcPos.x, this.wukong.getY() - npcPos.y);
-
-        if (distance < 50) {
-          npc.interact();
-          break;
-        }
+      if (distance < 50) {
+        npc.interact();
+        break;
       }
     }
+    // const jKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.J);
+    // if (jKey && Phaser.Input.Keyboard.JustDown(jKey)) {
+    //   // 防抖
+    //   const now = Date.now();
+    //   if (now - this.lastJPressTime < this.jPressCooldown) {
+    //     console.log('[checkNPCInteraction] 防抖，忽略');
+    //     return;
+    //   }
+    //   this.lastJPressTime = now;
+
+    //   for (const npc of this.npcs) {
+    //     const npcPos = npc.getPosition();
+    //     const distance = Math.hypot(this.wukong.getX() - npcPos.x, this.wukong.getY() - npcPos.y);
+
+    //     if (distance < 50) {
+    //       npc.interact();
+    //       break;
+    //     }
+    //   }
+    // }
   }
 
   private checkLeaveMap(): void {
+    if (this.isExiting) return;
     const playerX = this.wukong.getX();
     const playerY = this.wukong.getY();
-    const radius = 15;
 
-    const isTouchingLeft = playerX - radius <= 0;
-    const isTouchingRight = playerX + radius >= 800;
-    const isTouchingTop = playerY - radius <= 0;
-    const isTouchingBottom = playerY + radius >= 600;
+    const OutsetArea = {
+      x: 40,
+      y: 40,
+      width: 760 ,
+      height: 560
+    };
 
-    if (isTouchingLeft || isTouchingRight || isTouchingTop || isTouchingBottom) {
+    const isInOutset =
+        playerX < OutsetArea.x ||
+        playerX > OutsetArea.width ||
+        playerY < OutsetArea.y ||
+        playerY > OutsetArea.height;
+
+    if (isInOutset) {
+      this.isExiting = true;
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.cameras.main.once('camerafadeoutcomplete', () => {
         this.scene.start('WorldMapScene', { returnNodeId: 'huaguoshan' });
