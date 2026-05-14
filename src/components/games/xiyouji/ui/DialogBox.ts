@@ -23,6 +23,7 @@ export class DialogBox {
   }
 
   private createDialogBox(name: string, dialogues: string[]): void {
+    let canAdvance = false;  // 初始不允许跳过
     const width = this.scene.cameras.main.width;
     const height = this.scene.cameras.main.height;
     let currentIndex = 0;
@@ -84,6 +85,7 @@ export class DialogBox {
 
     // 创建新的监听器
     this.keyHandler = (event: KeyboardEvent) => {
+      if (!canAdvance) return;  // 还没到允许跳过的时间
       if (event.code === 'Space' || event.code === 'Enter' || event.code === 'KeyJ') {
         currentIndex++;
         if (currentIndex >= dialogues.length) {
@@ -95,6 +97,10 @@ export class DialogBox {
     };
 
     this.scene.input.keyboard?.on('keydown', this.keyHandler);
+
+    this.scene.time.delayedCall(150, () => {
+        canAdvance = true;
+    });
   }
 
   // 关闭对话框

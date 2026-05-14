@@ -12,7 +12,9 @@ const Chapter1Scenes = [HuaguoshanScene, WaterCurtainCaveScene];
 const DebugScenes = [TestScene];
 
 export const allScenes = [
-  ...CoreScenes,
   ...Chapter1Scenes,
+  ...CoreScenes,
+
   ...DebugScenes
+
 ];

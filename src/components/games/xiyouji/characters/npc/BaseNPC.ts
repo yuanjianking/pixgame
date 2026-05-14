@@ -40,14 +40,15 @@ export abstract class BaseNPC {
     if (tasks.length > 0) {
         // 有任务，显示任务对话
         const task = tasks[0];
-        const currentStep = task.steps.find(step => !step.completed);
-        if (currentStep && currentStep.target.dialogues) {
+        const currentStep = task.steps[0];
+        if (!task.completed && currentStep && currentStep.target.dialogues) {
             this.dialogBox.show(this.name, currentStep.target.dialogues);
+            return;
         }
-    } else {
-        // 没有任务，显示普通问候
-        this.dialogBox.show(this.name, this.dialogues);
     }
+    // 没有任务，显示普通问候
+    this.dialogBox.show(this.name, this.dialogues);
+
   }
 
   // 是否正在对话
