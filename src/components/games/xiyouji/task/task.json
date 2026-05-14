@@ -21,7 +21,7 @@
             "rewards": {
                 "exp": 100,
                 "items": ["金箍棒"],
-                "unlockScenes": ["EastSeaScene"]
+                "unlockScenes": ["DonghaiScene"]
             }
         }
     ]

@@ -18,9 +18,6 @@ export default class HuaguoshanScene extends Phaser.Scene {
   private isExiting = false;
   // NPC
   private npcs: BaseNPC[] = [];
-  // 对话框防抖
-  private lastJPressTime: number = 0;
-  private jPressCooldown: number = 200;
 
   private inputJController!: InputJController;
 
@@ -73,7 +70,7 @@ export default class HuaguoshanScene extends Phaser.Scene {
     this.wukong.setPosition(playerX, playerY);
     this.wukong.setCollisionRadius(15);
 
-     this.dialogBox = new DialogBox(this);
+    this.dialogBox = new DialogBox(this);
 
     // ==================== 添加大马猴 ====================
     const daMaHou = new DaMaHou(this, 8 * 40, 10 * 40,'赤尻马猴',[
