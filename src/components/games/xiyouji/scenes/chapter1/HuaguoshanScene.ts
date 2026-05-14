@@ -7,6 +7,7 @@ import { SmallMonkey } from '../../characters/npc/SmallMonkey';
 import type { BaseNPC } from '../../characters/npc/BaseNPC';
 import { DialogBox } from '../../ui/DialogBox';
 import { InputJController } from '../../controllers/InputJController';
+import type { GameSaveData } from '../../types';
 
 export default class HuaguoshanScene extends Phaser.Scene {
   private wukong!: WuKong;
@@ -23,11 +24,17 @@ export default class HuaguoshanScene extends Phaser.Scene {
 
   private inputJController!: InputJController;
 
+  private isNewGame: boolean = true;
+  private saveData?: GameSaveData;
+
   constructor() {
     super({ key: 'HuaguoshanScene' });
   }
 
-  init() {
+  init(data: { isNewGame: boolean; saveData?: GameSaveData }) {
+    this.isNewGame = data.isNewGame;
+    this.saveData = data.saveData;
+
     this.isEnteringCave = false;
     this.isExiting = false
     this.obstacles = [];
@@ -70,9 +77,9 @@ export default class HuaguoshanScene extends Phaser.Scene {
 
     // ==================== 添加大马猴 ====================
     const daMaHou = new DaMaHou(this, 8 * 40, 10 * 40,'赤尻马猴',[
-      '大王，您这口刀着实寒酸了些。',
-      '咱花果山四万七千猴众，连件像样的兵器都没有。',
-      '我听闻那东海龙宫里，藏着大禹治水留下的神珍铁，大王何不去走一遭？',
+      '大王，您来了。',
+      '大王有何吩咐？',
+      '大王，花果山一切安好。',
     ],this.dialogBox);
     this.npcs.push(daMaHou);
     this.obstacles.push(daMaHou.getCollisionRect());
@@ -176,26 +183,6 @@ export default class HuaguoshanScene extends Phaser.Scene {
         break;
       }
     }
-    // const jKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.J);
-    // if (jKey && Phaser.Input.Keyboard.JustDown(jKey)) {
-    //   // 防抖
-    //   const now = Date.now();
-    //   if (now - this.lastJPressTime < this.jPressCooldown) {
-    //     console.log('[checkNPCInteraction] 防抖，忽略');
-    //     return;
-    //   }
-    //   this.lastJPressTime = now;
-
-    //   for (const npc of this.npcs) {
-    //     const npcPos = npc.getPosition();
-    //     const distance = Math.hypot(this.wukong.getX() - npcPos.x, this.wukong.getY() - npcPos.y);
-
-    //     if (distance < 50) {
-    //       npc.interact();
-    //       break;
-    //     }
-    //   }
-    // }
   }
 
   private checkLeaveMap(): void {

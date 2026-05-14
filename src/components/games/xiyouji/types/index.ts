@@ -15,15 +15,6 @@ export interface CharacterConfig {
   };
 }
 
-// 定义存档数据类型
-export  interface SaveData {
-  playerPosition: { x: number; y: number };
-  level: number;
-  experience: number;
-  inventory: string[];
-  // 添加其他需要的字段
-}
-
 export interface NPC {
   id: string;
   name: string;
@@ -52,4 +43,57 @@ export interface WorldNode {
   description: string;
   icon: 'mountain' | 'temple' | 'water' | 'city' | 'cave' | 'desert' | 'forest' | 'fire' ;
   scene: string;  // 对应的场景名称
+}
+
+// 游戏任务
+export interface Task {
+    id: string;
+    name: string;
+    completed: boolean;
+    steps: Array<{
+        stepId: number;
+        description: string;
+        target: {
+            type: string;      // "talk" | "arrive" | "collect" | "kill"
+            npcId?: string;
+            scene?: string;
+            itemId?: string;
+            count?: number;
+            dialogues?:string[];
+        };
+    }>;
+    rewards: {
+        exp: number;
+        items: string[];
+        unlockScenes: string[];
+    };
+}
+
+// 需要保存的内容
+export interface GameSaveData {
+  // 基本信息
+  version: string;          // 存档版本
+  saveTime: number;         // 保存时间
+  slotId: number;           // 存档位（1-5）
+
+  // 玩家数据
+  player: {
+    position: { x: number; y: number };
+    currentScene: string;   // 当前场景
+    level: number;
+    exp: number;
+    hp: number;
+    maxHp: number;
+  };
+
+  // 游戏进度
+  progress: {
+    completedTasks: string[];   // 已完成任务ID
+    unlockedScenes: string[];   // 已解锁场景
+  };
+
+  // 背包数据
+  inventory: {
+    items: Array<{ id: string; count: number }>;
+  };
 }

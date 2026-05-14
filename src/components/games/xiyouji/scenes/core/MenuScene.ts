@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { SaveManager } from '../../save/SaveManager';
 
 interface MenuText extends Phaser.GameObjects.Text {
   arrowRef?: Phaser.GameObjects.Text;
@@ -380,12 +381,12 @@ export default class MenuScene extends Phaser.Scene {
 
   private continueGame() {
     console.log('继续游戏');
-    const saveData = localStorage.getItem('xiyouji_save');
+    const saveData = SaveManager.getInstance().loadGame(1); // 默认加载第一个存档位
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('GameScene', {
+      this.scene.start(saveData?.player.currentScene, {
         isNewGame: false,
-        saveData: saveData ? JSON.parse(saveData) : null
+        saveData: saveData
       });
     });
   }

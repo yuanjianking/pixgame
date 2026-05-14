@@ -1,6 +1,7 @@
 // npc/BaseNPC.ts
 import * as Phaser from 'phaser';
 import { DialogBox } from '../../ui/DialogBox';
+import { TaskManager } from '../../task/TaskManager';
 
 export abstract class BaseNPC {
   protected scene: Phaser.Scene;
@@ -28,11 +29,25 @@ export abstract class BaseNPC {
 
   // 交互
   public interact(): void {
-     if (this.dialogBox.isDialogActive()) {
-      console.log('对话框已激活，其他猴子无法打断');
+    if (this.dialogBox.isDialogActive()) {
+      console.log('对话框已激活，其他无法打断');
       return;
     }
-    this.dialogBox.show(this.name, this.dialogues);
+
+    // 先检查是否有任务需要交互
+    const tasks = TaskManager.getInstance().getTasksByNpc(this.name);
+
+    if (tasks.length > 0) {
+        // 有任务，显示任务对话
+        const task = tasks[0];
+        const currentStep = task.steps.find(step => !step.completed);
+        if (currentStep && currentStep.target.dialogues) {
+            this.dialogBox.show(this.name, currentStep.target.dialogues);
+        }
+    } else {
+        // 没有任务，显示普通问候
+        this.dialogBox.show(this.name, this.dialogues);
+    }
   }
 
   // 是否正在对话
