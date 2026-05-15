@@ -1,4 +1,4 @@
-// characters/player/BaseCharacter.ts
+// BaseCharacter.ts
 import * as Phaser from 'phaser';
 import { MovementController } from '../../controllers/MovementController';
 
@@ -31,6 +31,12 @@ export abstract class BaseCharacter {
   // 可选：使用控制器
   protected movementController?: MovementController;
 
+  // 血条
+  protected healthBar: Phaser.GameObjects.Graphics | null = null;
+  protected currentHp: number = 100;
+  protected maxHp: number = 100;
+  protected healthBarColor: number = 0x00AA00; // 默认绿色
+
   constructor(graphics: Phaser.GameObjects.Graphics, useController: boolean = false, scene?: Phaser.Scene) {
     this.graphics = graphics;
     if (useController && scene) {
@@ -41,6 +47,77 @@ export abstract class BaseCharacter {
   // 抽象方法
   public abstract draw(x: number, y: number): void;
   public abstract updateAnimation(isMoving: boolean, walkCycle: number): void;
+
+  // 设置血量
+  public setHp(hp: number, maxHp: number, color?: number): void {
+    this.currentHp = hp;
+    this.maxHp = maxHp;
+    if (color !== undefined) {
+      this.healthBarColor = color;
+    }
+    this.updateHealthBar();
+  }
+
+  // 获取当前血量
+  public getHp(): number {
+    return this.currentHp;
+  }
+
+  // 获取最大血量
+  public getMaxHp(): number {
+    return this.maxHp;
+  }
+
+  // 受到伤害
+  public takeDamage(amount: number): boolean {
+      const damage = Math.min(amount, this.currentHp);
+      this.currentHp -= damage;
+      this.updateHealthBar();
+
+      // 返回是否死亡
+      return this.currentHp <= 0;
+  }
+
+  // 创建血条
+  protected createHealthBar(): void {
+    if (this.healthBar) {
+      this.healthBar.destroy();
+    }
+
+    const graphics = this.graphics.scene.add.graphics();
+    this.updateHealthBarGraphics(graphics);
+    this.healthBar = graphics;
+  }
+
+  // 更新血条图形
+  protected updateHealthBarGraphics(graphics: Phaser.GameObjects.Graphics): void {
+    graphics.clear();
+
+    const hpPercent = this.currentHp / this.maxHp;
+    const barWidth = 40;
+    const barHeight = 5;
+    const barX = -barWidth / 2;
+    const barY = -this.collisionRadius - 8;
+
+    // 背景
+    graphics.fillStyle(0x333333, 0.8);
+    graphics.fillRect(barX, barY, barWidth, barHeight);
+
+    // 血量条
+    graphics.fillStyle(this.healthBarColor, 1);
+    graphics.fillRect(barX, barY, barWidth * hpPercent, barHeight);
+  }
+
+  // 更新血条位置和数值
+  public updateHealthBar(): void {
+    if (!this.healthBar) {
+      this.createHealthBar();
+    }
+    this.updateHealthBarGraphics(this.healthBar!);
+
+    // 血条跟随角色移动
+    this.healthBar!.setPosition(this.x, this.y);
+  }
 
   // 碰撞检测
   private checkCollision(x: number, y: number, obstacle: Obstacle): boolean {
@@ -81,6 +158,7 @@ export abstract class BaseCharacter {
 
     this.updateAnimation(this.isMoving, this.walkCycle);
     this.draw(this.x, this.y);
+    this.updateHealthBar();
   }
 
   // 带碰撞的移动
@@ -96,7 +174,6 @@ export abstract class BaseCharacter {
       const newX = this.x + dx * this.moveSpeed;
       const newY = this.y + dy * this.moveSpeed;
 
-      // 碰撞检测
       let canMoveX = true;
       let canMoveY = true;
 
@@ -112,7 +189,6 @@ export abstract class BaseCharacter {
       if (canMoveX) this.x = newX;
       if (canMoveY) this.y = newY;
 
-      // 边界限制
       this.x = Math.max(this.boundsMinX, Math.min(this.boundsMaxX, this.x));
       this.y = Math.max(this.boundsMinY, Math.min(this.boundsMaxY, this.y));
 
@@ -123,6 +199,7 @@ export abstract class BaseCharacter {
 
     this.updateAnimation(this.isMoving, this.walkCycle);
     this.draw(this.x, this.y);
+    this.updateHealthBar();
   }
 
   // 自动从控制器获取方向并移动（无碰撞）
@@ -146,6 +223,7 @@ export abstract class BaseCharacter {
     this.x = x;
     this.y = y;
     this.draw(this.x, this.y);
+    this.updateHealthBar();
   }
 
   public getX(): number { return this.x; }
@@ -168,8 +246,16 @@ export abstract class BaseCharacter {
 
   public setScale(scale: number, widthScale?: number): void {
     this.S = scale;
-  if (widthScale !== undefined) {
-    this.WIDTH_SCALE = widthScale;
+    if (widthScale !== undefined) {
+      this.WIDTH_SCALE = widthScale;
+    }
   }
-}
+
+  public clear(): void {
+    if (this.healthBar) {
+      this.healthBar.destroy();
+      this.healthBar = null;
+    }
+    this.graphics.clear();
+  }
 }

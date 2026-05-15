@@ -328,6 +328,49 @@ export class DonghaiScene extends Phaser.Scene {
     private startBattleOrTask(): void {
         console.log('准备与龙王战斗或获取任务');
         // 触发战斗或给任务
-        // TaskManager.getInstance().acceptTask('xxx');
+        this.scene.start('BattleScene', {
+        playerUnits: [
+            {
+                id: 'wukong',
+                name: '孙悟空',
+                x: 11,
+                y: 7,
+                hp: 100,
+                maxHp: 100,
+                attack: 25,
+                defense: 10,
+                moveRange: 3,
+                attackRange: 1,
+                characterClass: 'WuKong'
+            }
+        ],
+        enemyUnits: [
+            {
+                id: 'bailongma_1',
+                name: '白龙马',
+                x: 3,
+                y: 5,
+                hp: 60,
+                maxHp: 60,
+                attack: 18,
+                defense: 8,
+                moveRange: 4,
+                attackRange: 1,
+                characterClass: 'BaiLongMa'
+            },
+            {
+                id: 'bailongma_2',
+                name: '白龙马',
+                x: 4,
+                y: 6,
+                hp: 60,
+                maxHp: 60,
+                attack: 18,
+                defense: 8,
+                moveRange: 4,
+                attackRange: 1,
+                characterClass: 'BaiLongMa'
+            }
+        ]});
     }
 }

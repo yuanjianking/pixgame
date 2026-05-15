@@ -9,7 +9,7 @@ import WorldMapScene from "./core/WorldMapScene";
 import { DonghaiScene } from "./chapter1/DonghaiScene";
 import { BattleScene } from "./core/BattleScene";
 
-const CoreScenes = [BattleScene, BootScene, MenuScene,OpeningScene, WorldMapScene];
+const CoreScenes = [BootScene, MenuScene,OpeningScene, WorldMapScene, BattleScene];
 const Chapter1Scenes = [HuaguoshanScene, WaterCurtainCaveScene,DonghaiScene];
 const DebugScenes = [TestScene];
 
