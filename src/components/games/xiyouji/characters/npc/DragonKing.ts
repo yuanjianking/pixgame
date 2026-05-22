@@ -6,8 +6,8 @@ import type { DialogBox } from '../../ui/DialogBox';
 export class DragonKing extends BaseCharacter {
   static readonly BATTLE_STATS = {
     maxHp: 110,
-    attack: 18,
-    defense: 10,
+    attack: 10,
+    defense: 6,
     moveRange: 2,
     attackRange: 2,
     healthBarColor: 0xf1c40f,

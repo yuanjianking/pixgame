@@ -3,6 +3,9 @@ import * as Phaser from 'phaser';
 import { WuKong } from '../../characters/player/WuKong';
 import { WorldNodesData } from '../../data/WorldData';
 import type { WorldNode } from '../../types';
+import { SaveManager } from '../../save/SaveManager';
+import { applySaveToCharacter } from '../../save/playerSave';
+import { saveEnterSceneProgress } from '../sceneSave';
 
 export default class WorldMapScene extends Phaser.Scene {
   private wukong!: WuKong;
@@ -1119,6 +1122,11 @@ export default class WorldMapScene extends Phaser.Scene {
     }
 
     this.wukong.setCollisionRadius(15);
+
+    // 从存档加载角色属性
+    const saved = SaveManager.getInstance().loadGame(1)?.player;
+    applySaveToCharacter(this.wukong, saved);
+    saveEnterSceneProgress(this.wukong, 'WorldMapScene', { x: this.wukong.getX(), y: this.wukong.getY() });
   }
 
   private showControlHint(): void {

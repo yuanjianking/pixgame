@@ -7,7 +7,7 @@ export class Crab extends BaseCharacter {
   static readonly BATTLE_STATS = {
     maxHp: 44,
     attack: 10,
-    defense: 6,
+    defense: 5,
     moveRange: 2,
     attackRange: 1,
     healthBarColor: 0xcc2222,

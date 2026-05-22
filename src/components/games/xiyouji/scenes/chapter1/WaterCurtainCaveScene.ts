@@ -1,6 +1,9 @@
 // scenes/WaterCurtainCaveScene.ts
 import * as Phaser from 'phaser';
 import { WuKong } from '../../characters/player/WuKong';
+import { SaveManager } from '../../save/SaveManager';
+import { applySaveToCharacter } from '../../save/playerSave';
+import { saveEnterSceneProgress } from '../sceneSave';
 
 export default class WaterCurtainCaveScene extends Phaser.Scene {
   private wukong!: WuKong;
@@ -346,6 +349,10 @@ export default class WaterCurtainCaveScene extends Phaser.Scene {
     this.wukong.setPosition(width / 2, height / 2);
     this.wukong.setBounds(50, width - 50, 50, height - 80);
 
+    // 从存档加载角色属性
+    const saved = SaveManager.getInstance().loadGame(1)?.player;
+    applySaveToCharacter(this.wukong, saved);
+    saveEnterSceneProgress(this.wukong, 'WaterCurtainCaveScene', { x: width / 2, y: height / 2 });
   }
 
   private checkExit(): void {
