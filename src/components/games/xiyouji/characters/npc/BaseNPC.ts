@@ -11,6 +11,14 @@ export abstract class BaseNPC {
   protected dialogues: string[];
   public x: number;
   public y: number;
+  protected healthBar: Phaser.GameObjects.Graphics | null = null;
+  protected currentHp: number = 100;
+  protected maxHp: number = 100;
+  protected healthBarColor: number = 0x00AA00;
+  protected attack: number = 10;
+  protected defense: number = 5;
+  protected battleMoveRange: number = 3;
+  protected battleAttackRange: number = 1;
   // 缩放系数
   protected static readonly S = 0.6;
   protected static readonly WIDTH_SCALE = 1.1;
@@ -38,11 +46,13 @@ export abstract class BaseNPC {
     const tasks = TaskManager.getInstance().getTasksByNpc(this.name);
 
     if (tasks.length > 0) {
-        // 有任务，显示任务对话
         const task = tasks[0];
-        const currentStep = task.steps[0];
-        if (!task.completed && currentStep && currentStep.target.dialogues) {
-            this.dialogBox.show(this.name, currentStep.target.dialogues);
+        const currentStep = TaskManager.getInstance().getActiveStep(task);
+        if (currentStep?.target.dialogues) {
+            const sceneName = this.scene.scene.key;
+            this.dialogBox.show(this.name, currentStep.target.dialogues, () => {
+                TaskManager.getInstance().markTalk(this.name, sceneName);
+            });
             return;
         }
     }
@@ -59,6 +69,11 @@ export abstract class BaseNPC {
   // 获取位置
   public getPosition(): { x: number; y: number } {
     return { x: this.x, y: this.y };
+  }
+
+  // 暴露 sprite 容器
+  public getSprite(): Phaser.GameObjects.Container {
+    return this.sprite;
   }
 
   // 获取碰撞区域

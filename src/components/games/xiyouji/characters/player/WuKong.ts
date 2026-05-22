@@ -1,9 +1,34 @@
 import { BaseCharacter } from "./BaseCharacter";
 
+/** 输出型：高攻高机动，生命成长中等 */
 export class WuKong  extends BaseCharacter {
+  static readonly BASE_STATS = {
+    maxHp: 100,
+    attack: 14,
+    defense: 6,
+    moveRange: 4,
+    attackRange: 1,
+    healthBarColor: 0xFFD700,
+  } as const;
+
+  static readonly LEVEL_GROWTH = {
+    hp: 8,
+    attack: 3,
+    defense: 1,
+    moveRangeEveryLevels: 2,
+    moveRangeBonus: 1,
+  } as const;
+
+  protected currentHp: number = WuKong.BASE_STATS.maxHp;
+  protected maxHp: number = WuKong.BASE_STATS.maxHp;
+  protected healthBarColor: number = WuKong.BASE_STATS.healthBarColor;
+  protected attack: number = WuKong.BASE_STATS.attack;
+  protected defense: number = WuKong.BASE_STATS.defense;
+  protected battleMoveRange: number = WuKong.BASE_STATS.moveRange;
+  protected battleAttackRange: number = WuKong.BASE_STATS.attackRange;
+  protected levelGrowth = WuKong.LEVEL_GROWTH;
+
   private blinkTimer: number = 0;
-  private attackTimer: number = 0;
-  private isAttacking: boolean = false;
 
 
   // SRPG固定色调板
@@ -44,9 +69,8 @@ export class WuKong  extends BaseCharacter {
   updateAnimation(isMoving: boolean, walkCycle: number, isAttacking: boolean = false) {
     this.isMoving = isMoving;
     this.walkCycle = walkCycle;
-    this.isAttacking = isAttacking;
-    if (isAttacking) this.attackTimer = 12;
-    else this.attackTimer = Math.max(0, this.attackTimer - 1);
+    this.tickAttackTimer(isAttacking);
+    this.tickHurtTimer();
   }
 
   private px(v: number): number {

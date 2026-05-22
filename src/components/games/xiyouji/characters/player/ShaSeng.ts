@@ -1,10 +1,32 @@
 import { BaseCharacter } from "./BaseCharacter";
 
+/** 均衡型：攻防血成长稳定，适合持久战 */
 export class ShaSeng  extends BaseCharacter {
+  static readonly BASE_STATS = {
+    maxHp: 110,
+    attack: 10,
+    defense: 8,
+    moveRange: 3,
+    attackRange: 1,
+    healthBarColor: 0x6699CC,
+  } as const;
+
+  static readonly LEVEL_GROWTH = {
+    hp: 11,
+    attack: 2,
+    defense: 2,
+  } as const;
+
+  protected currentHp: number = ShaSeng.BASE_STATS.maxHp;
+  protected maxHp: number = ShaSeng.BASE_STATS.maxHp;
+  protected healthBarColor: number = ShaSeng.BASE_STATS.healthBarColor;
+  protected attack: number = ShaSeng.BASE_STATS.attack;
+  protected defense: number = ShaSeng.BASE_STATS.defense;
+  protected battleMoveRange: number = ShaSeng.BASE_STATS.moveRange;
+  protected battleAttackRange: number = ShaSeng.BASE_STATS.attackRange;
+  protected levelGrowth = ShaSeng.LEVEL_GROWTH;
 
   private blinkTimer: number = 0;
-  private attackTimer: number = 0;
-  private isAttacking: boolean = false;
 
   private readonly COLORS = {
     SKIN_LIGHT: 0xD48A4A,
@@ -35,9 +57,8 @@ export class ShaSeng  extends BaseCharacter {
   updateAnimation(isMoving: boolean, walkCycle: number, isAttacking: boolean = false) {
     this.isMoving = isMoving;
     this.walkCycle = walkCycle;
-    this.isAttacking = isAttacking;
-    if (isAttacking) this.attackTimer = 12;
-    else this.attackTimer = Math.max(0, this.attackTimer - 1);
+    this.tickAttackTimer(isAttacking);
+    this.tickHurtTimer();
   }
 
   private px(v: number): number {

@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { SaveManager } from '../../save/SaveManager';
+import { createDefaultSaveData } from '../../save/saveDefaults';
 
 interface MenuText extends Phaser.GameObjects.Text {
   arrowRef?: Phaser.GameObjects.Text;
@@ -372,7 +373,10 @@ export default class MenuScene extends Phaser.Scene {
 
   private startNewGame() {
     console.log('开始新游戏');
-    localStorage.removeItem('xiyouji_save');
+    // 清除所有存档
+    localStorage.removeItem('game_saves');
+    // 初始化一个干净的默认存档
+    SaveManager.getInstance().saveGame(1, createDefaultSaveData(1));
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start('OpeningScene', { isNewGame: true });

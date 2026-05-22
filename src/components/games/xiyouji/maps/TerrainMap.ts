@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 
-export class GameMap {
+export class TerrainMap {
   public static readonly TERRAIN = {
     GRASS: 1,
     DIRT: 2
@@ -30,23 +30,23 @@ export class GameMap {
     for (let y = 0; y < this.mapHeight; y++) {
       this.data[y] = [];
       for (let x = 0; x < this.mapWidth; x++) {
-        this.data[y][x] = GameMap.TERRAIN.GRASS;
+        this.data[y][x] = TerrainMap.TERRAIN.GRASS;
       }
     }
 
     for (let x = 0; x < this.mapWidth; x++) {
-      this.data[0][x] = GameMap.TERRAIN.DIRT;
-      this.data[this.mapHeight - 1][x] = GameMap.TERRAIN.DIRT;
+      this.data[0][x] = TerrainMap.TERRAIN.DIRT;
+      this.data[this.mapHeight - 1][x] = TerrainMap.TERRAIN.DIRT;
     }
     for (let y = 0; y < this.mapHeight; y++) {
-      this.data[y][0] = GameMap.TERRAIN.DIRT;
-      this.data[y][this.mapWidth - 1] = GameMap.TERRAIN.DIRT;
+      this.data[y][0] = TerrainMap.TERRAIN.DIRT;
+      this.data[y][this.mapWidth - 1] = TerrainMap.TERRAIN.DIRT;
     }
   }
 
   public get(x: number, y: number): number {
     if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) {
-      return GameMap.TERRAIN.DIRT;
+      return TerrainMap.TERRAIN.DIRT;
     }
     return this.data[y][x];
   }
@@ -71,7 +71,7 @@ export class GameMap {
     const tile = this.scene.add.container(x, y);
     const g = this.scene.add.graphics();
 
-    if (type === GameMap.TERRAIN.GRASS) {
+    if (type === TerrainMap.TERRAIN.GRASS) {
       g.fillStyle(0x5A9E4A);
       g.fillRect(0, 0, this.tileSize, this.tileSize);
       g.fillStyle(0x4A8E3A, 0.4);
@@ -82,7 +82,7 @@ export class GameMap {
       for (let i = 0; i < 4; i++) {
         g.fillRect(2 + Math.random() * 36, 2 + Math.random() * 36, 2, 2);
       }
-    } else if (type === GameMap.TERRAIN.DIRT) {
+    } else if (type === TerrainMap.TERRAIN.DIRT) {
       g.fillStyle(0xD4A35C);
       g.fillRect(0, 0, this.tileSize, this.tileSize);
       g.fillStyle(0xC4903A, 0.5);

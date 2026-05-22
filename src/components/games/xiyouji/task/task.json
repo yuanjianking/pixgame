@@ -16,12 +16,20 @@
                               "咱花果山四万七千猴众，连件像样的兵器都没有。",
                               "我听闻那东海龙宫里，藏着大禹治水留下的神珍铁，大王何不去走一遭？"]
                 }
+            },
+            {
+                "stepId": 2,
+                "description": "击败东海龙王夺取神珍铁",
+                "target": {
+                "type": "kill",
+                "npcId": "东海龙王"
+                }
             }
             ],
             "rewards": {
                 "exp": 100,
                 "items": ["金箍棒"],
-                "unlockScenes": ["DonghaiScene"]
+                "unlockScenes": ["WaterCurtainCaveScene", "DonghaiScene"]
             }
         }
     ]

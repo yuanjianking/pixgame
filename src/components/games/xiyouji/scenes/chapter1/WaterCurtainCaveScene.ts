@@ -364,7 +364,7 @@ export default class WaterCurtainCaveScene extends Phaser.Scene {
       this.isExiting = true;
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.cameras.main.once('camerafadeoutcomplete', () => {
-        this.scene.start('HuaguoshanScene');
+        this.scene.start('HuaguoshanScene', { fromCave: true, caveExitX: playerX, caveExitY: playerY });
       });
     }
   }

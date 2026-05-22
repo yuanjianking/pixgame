@@ -70,26 +70,46 @@ export interface Task {
 }
 
 // 需要保存的内容
+export interface EquipmentData {
+  id: string;
+  name: string;
+}
+
+export interface PlayerSaveData {
+  id: string;              // 玩家唯一 ID
+  playerClass: string;     // 玩家角色类名
+  position: { x: number; y: number };
+  currentScene: string;    // 当前场景
+  level: number;
+  exp: number;
+  hp: number;
+  maxHp: number;
+  attack: number;
+  defense: number;
+  battleMoveRange: number;
+  battleAttackRange: number;
+  weapon: EquipmentData;
+  clothes: EquipmentData;
+}
+
 export interface GameSaveData {
   // 基本信息
   version: string;          // 存档版本
   saveTime: number;         // 保存时间
   slotId: number;           // 存档位（1-5）
 
-  // 玩家数据
-  player: {
-    position: { x: number; y: number };
-    currentScene: string;   // 当前场景
-    level: number;
-    exp: number;
-    hp: number;
-    maxHp: number;
-  };
+  // 当前活动玩家数据
+  player: PlayerSaveData;
+
+  // 玩家队伍数据（最多 4 名角色）
+  party: PlayerSaveData[];
 
   // 游戏进度
   progress: {
     completedTasks: string[];   // 已完成任务ID
     unlockedScenes: string[];   // 已解锁场景
+    /** 各任务已完成到的 stepId（键为 taskId） */
+    taskStepProgress?: Record<string, number>;
   };
 
   // 背包数据

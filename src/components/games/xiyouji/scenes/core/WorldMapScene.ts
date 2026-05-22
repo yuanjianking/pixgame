@@ -37,9 +37,10 @@ export default class WorldMapScene extends Phaser.Scene {
 
     this.createWorldNodes();
     this.createPlayer();
+    this.showControlHint();
 
     this.cameras.main.setBounds(0, 0, this.mapWidth, this.mapHeight);
-    this.cameras.main.setZoom(0.6);
+    this.cameras.main.setZoom(0.5);
     this.cameras.main.startFollow(this.wukong, true, 0.1, 0.1);
 
 
@@ -1120,6 +1121,33 @@ export default class WorldMapScene extends Phaser.Scene {
     this.wukong.setCollisionRadius(15);
   }
 
+  private showControlHint(): void {
+    const hint = this.add.text(this.wukong.getX(), this.wukong.getY() - 60, 'WASD 移动 | 靠近地点进入', {
+      fontSize: '14px',
+      color: '#FFD700',
+      fontFamily: 'monospace',
+      backgroundColor: '#000000aa',
+      padding: { x: 10, y: 4 },
+    }).setOrigin(0.5).setDepth(30);
+
+    this.tweens.add({
+      targets: hint,
+      alpha: { from: 1, to: 0.3 },
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    this.time.delayedCall(5000, () => {
+      this.tweens.add({
+        targets: hint,
+        alpha: 0,
+        duration: 500,
+        onComplete: () => hint.destroy(),
+      });
+    });
+  }
+
   update(): void {
     if (this.wukong) {
       this.wukong.updateFromControllerWithCollision(this.obstacles);
@@ -1139,9 +1167,21 @@ export default class WorldMapScene extends Phaser.Scene {
       // 计算玩家与节点的距离
       const distance = Math.hypot(playerX - nodeX, playerY - nodeY);
 
+      // 高亮附近可进入的节点（名字变为亮白色并略微放大）
+      const nodeData = WorldNodesData.find(n => n.id === id);
+      if (nodeData && nodeData.isUnlocked) {
+        const nameText = container.getAt(1) as Phaser.GameObjects.Text;
+        if (distance < 80) {
+          nameText.setColor('#FFFFFF');
+          nameText.setScale(1.1);
+        } else {
+          nameText.setColor('#FFD700');
+          nameText.setScale(1);
+        }
+      }
+
       // 如果距离小于阈值（比如 30px），触发进入场景
       if (distance < 30) {
-        const nodeData = WorldNodesData.find(n => n.id === id);
         if (nodeData && nodeData.isUnlocked) {
           this.enterNodeScene(nodeData);
         }

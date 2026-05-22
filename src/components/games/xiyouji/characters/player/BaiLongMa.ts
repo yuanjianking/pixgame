@@ -5,10 +5,35 @@
 
 import { BaseCharacter } from "./BaseCharacter";
 
-export class BaiLongMa extends BaseCharacter{
+/** 敏捷型：移动力最强，攻防成长均衡 */
+export class BaiLongMa extends BaseCharacter {
+  static readonly BASE_STATS = {
+    maxHp: 90,
+    attack: 11,
+    defense: 5,
+    moveRange: 5,
+    attackRange: 1,
+    healthBarColor: 0xE8F4FF,
+  } as const;
+
+  static readonly LEVEL_GROWTH = {
+    hp: 7,
+    attack: 2,
+    defense: 1,
+    moveRangeEveryLevels: 3,
+    moveRangeBonus: 1,
+  } as const;
+
+  protected currentHp: number = BaiLongMa.BASE_STATS.maxHp;
+  protected maxHp: number = BaiLongMa.BASE_STATS.maxHp;
+  protected healthBarColor: number = BaiLongMa.BASE_STATS.healthBarColor;
+  protected attack: number = BaiLongMa.BASE_STATS.attack;
+  protected defense: number = BaiLongMa.BASE_STATS.defense;
+  protected battleMoveRange: number = BaiLongMa.BASE_STATS.moveRange;
+  protected battleAttackRange: number = BaiLongMa.BASE_STATS.attackRange;
+  protected levelGrowth = BaiLongMa.LEVEL_GROWTH;
+
   private blinkTimer: number = 0;
-  private attackTimer: number = 0;
-  private isAttacking: boolean = false;
 
 
   private readonly COLORS = {
@@ -48,9 +73,8 @@ export class BaiLongMa extends BaseCharacter{
   updateAnimation(isMoving: boolean, walkCycle: number, isAttacking: boolean = false) {
     this.isMoving = isMoving;
     this.walkCycle = walkCycle;
-    this.isAttacking = isAttacking;
-    if (isAttacking) this.attackTimer = 12;
-    else this.attackTimer = Math.max(0, this.attackTimer - 1);
+    this.tickAttackTimer(isAttacking);
+    this.tickHurtTimer();
   }
 
   private px(v: number): number {
@@ -117,9 +141,15 @@ export class BaiLongMa extends BaseCharacter{
     this.graphics.setPosition(x, y);
 
     const bodyY = 12 + (this.isMoving ? Math.sin(this.walkCycle) * 1.5 : 0);
-    const headSwing = this.isMoving ? Math.sin(this.walkCycle * 1.5) * 3 : 0;
-    const legSwing = this.isMoving ? Math.sin(this.walkCycle * 2) * 4 : 0;
-    const tailSwing = this.isMoving ? Math.sin(this.walkCycle * 2.5) * 6 : 0;
+    const headSwing = this.isMoving
+      ? Math.sin(this.walkCycle * 1.5) * 3
+      : (this.isAttacking ? -8 : 0);
+    const legSwing = this.isMoving
+      ? Math.sin(this.walkCycle * 2) * 4
+      : (this.isAttacking ? 6 : 0);
+    const tailSwing = this.isMoving
+      ? Math.sin(this.walkCycle * 2.5) * 6
+      : (this.isAttacking ? 10 : 0);
     const eyeClose = this.blinkTimer++ % 160 < 4;
 
     // 地面阴影

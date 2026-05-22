@@ -1,12 +1,16 @@
 // scenes/HuaguoshanScene.ts
 import * as Phaser from 'phaser';
-import { GameMap } from '../../maps/TerrainMap';
+import { TerrainMap } from '../../maps/TerrainMap';
 import { WuKong } from '../../characters/player/WuKong';
 import { DaMaHou } from '../../characters/npc/DaMaHou';
 import { SmallMonkey } from '../../characters/npc/SmallMonkey';
 import type { BaseNPC } from '../../characters/npc/BaseNPC';
 import { DialogBox } from '../../ui/DialogBox';
+import { HUD } from '../../ui/HUD';
 import { InputJController } from '../../controllers/InputJController';
+import { SaveManager } from '../../save/SaveManager';
+import { applySaveToCharacter } from '../../save/playerSave';
+import { saveEnterSceneProgress } from '../sceneSave';
 import type { GameSaveData } from '../../types';
 
 export default class HuaguoshanScene extends Phaser.Scene {
@@ -23,14 +27,20 @@ export default class HuaguoshanScene extends Phaser.Scene {
 
   private isNewGame: boolean = true;
   private saveData?: GameSaveData;
+  private fromCave: boolean = false;
+  private caveExitX?: number;
+  private caveExitY?: number;
 
   constructor() {
     super({ key: 'HuaguoshanScene' });
   }
 
-  init(data: { isNewGame: boolean; saveData?: GameSaveData }) {
-    this.isNewGame = data.isNewGame;
-    this.saveData = data.saveData;
+  init(data?: { isNewGame?: boolean; saveData?: GameSaveData; fromCave?: boolean; caveExitX?: number; caveExitY?: number }) {
+    this.isNewGame = data?.isNewGame ?? true;
+    this.saveData = data?.saveData;
+    this.fromCave = data?.fromCave || false;
+    this.caveExitX = data?.caveExitX;
+    this.caveExitY = data?.caveExitY;
 
     this.isEnteringCave = false;
     this.isExiting = false
@@ -38,7 +48,7 @@ export default class HuaguoshanScene extends Phaser.Scene {
   }
 
   create() {
-    const map = new GameMap(this, '花果山');
+    const map = new TerrainMap(this, '花果山');
     map.render();
 
     // 画水帘洞
@@ -60,17 +70,40 @@ export default class HuaguoshanScene extends Phaser.Scene {
       this.drawPeachTree(x, y);
     });
 
+    // 装饰花草
+    this.drawFlowers();
+    this.drawGrassTufts();
+
     // 添加孙悟空
     const playerGraphics = this.add.graphics();
     this.wukong = new WuKong(playerGraphics, this);
     const startGridX = 10;
     const startGridY = 7;
-    const playerX = startGridX * 40;
-    const playerY = startGridY * 40;
+    const savedPlayer =
+      this.saveData?.player ?? SaveManager.getInstance().loadGame(1)?.player;
+    applySaveToCharacter(this.wukong, savedPlayer);
+
+    // 从水帘洞返回时使用洞穴出口位置
+    let playerX: number;
+    let playerY: number;
+    if (this.fromCave && this.caveExitX !== undefined && this.caveExitY !== undefined) {
+      playerX = this.caveExitX;
+      playerY = this.caveExitY;
+    } else if (this.isNewGame) {
+      playerX = startGridX * 40;
+      playerY = startGridY * 40;
+    } else {
+      playerX = savedPlayer?.position.x ?? startGridX * 40;
+      playerY = savedPlayer?.position.y ?? startGridY * 40;
+    }
     this.wukong.setPosition(playerX, playerY);
     this.wukong.setCollisionRadius(15);
 
     this.dialogBox = new DialogBox(this);
+
+    new HUD(this, () => this.wukong.getLevel());
+
+    saveEnterSceneProgress(this.wukong, 'HuaguoshanScene', { x: playerX, y: playerY });
 
     // ==================== 添加大马猴 ====================
     const daMaHou = new DaMaHou(this, 8 * 40, 10 * 40,'赤尻马猴',[
@@ -131,6 +164,35 @@ export default class HuaguoshanScene extends Phaser.Scene {
     this.inputJController.onInteract = () => {
           this.checkNPCInteraction();
       };
+
+    // 显示控制提示（几秒后消失）
+    this.showControlHint();
+  }
+
+  private showControlHint(): void {
+    const hint = this.add.text(400, 560, 'WASD 移动 | J 对话/确认', {
+      fontSize: '12px',
+      color: '#FFD700',
+      fontFamily: 'monospace',
+      backgroundColor: '#000000aa',
+      padding: { x: 10, y: 4 },
+    }).setOrigin(0.5).setDepth(200).setScrollFactor(0);
+
+    this.tweens.add({
+      targets: hint,
+      alpha: { from: 1, to: 0.5 },
+      duration: 1000,
+      yoyo: true,
+      repeat: 2,
+      onComplete: () => {
+        this.tweens.add({
+          targets: hint,
+          alpha: 0,
+          duration: 500,
+          onComplete: () => hint.destroy(),
+        });
+      },
+    });
   }
 
   update() {
@@ -260,6 +322,55 @@ export default class HuaguoshanScene extends Phaser.Scene {
     container.add(text);
 
     container.setDepth(20);
+  }
+
+  // 画小花装饰
+  private drawFlowers(): void {
+    const positions = [
+      [3, 8], [8, 3], [12, 8], [16, 7], [7, 14], [14, 14], [5, 6], [11, 11], [17, 8], [15, 4],
+      [8, 9], [12, 3], [6, 13], [13, 9], [9, 6],
+    ];
+    const colors = [0xFFB6C1, 0xFFD700, 0xFF69B4, 0xFFFFFF, 0xFFA07A];
+    positions.forEach(([gx, gy]) => {
+      const x = gx * 40 + 20 + (Math.random() - 0.5) * 10;
+      const y = gy * 40 + 20 + (Math.random() - 0.5) * 10;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const flower = this.add.graphics();
+      flower.fillStyle(color, 0.8);
+      for (let p = 0; p < 4; p++) {
+        const angle = (Math.PI / 2) * p;
+        flower.fillCircle(x + Math.cos(angle) * 3, y + Math.sin(angle) * 3, 2.5);
+      }
+      flower.fillStyle(0xFFDD44, 1);
+      flower.fillCircle(x, y, 1.5);
+      flower.setDepth(5);
+    });
+  }
+
+  // 画草丛装饰
+  private drawGrassTufts(): void {
+    const positions = [
+      [1, 1], [3, 10], [14, 10], [19, 1], [10, 14], [18, 14], [5, 3], [15, 11], [8, 5], [12, 9],
+      [2, 7], [17, 5], [9, 12], [7, 2], [11, 13], [19, 8], [1, 14], [13, 6], [4, 11], [16, 9],
+    ];
+    positions.forEach(([gx, gy]) => {
+      const x = gx * 40 + 10 + Math.random() * 20;
+      const y = gy * 40 + 25 + Math.random() * 10;
+      const grass = this.add.graphics();
+      grass.fillStyle(0x3A7A2A, 0.6);
+      grass.beginPath();
+      grass.moveTo(x, y);
+      grass.lineTo(x - 2, y - 8 - Math.random() * 4);
+      grass.lineTo(x + 2, y - 10 - Math.random() * 4);
+      grass.fillPath();
+      grass.fillStyle(0x4A8A3A, 0.5);
+      grass.beginPath();
+      grass.moveTo(x + 3, y + 2);
+      grass.lineTo(x + 1, y - 6 - Math.random() * 3);
+      grass.lineTo(x + 5, y - 8 - Math.random() * 3);
+      grass.fillPath();
+      grass.setDepth(5);
+    });
   }
 
   // 画桃树

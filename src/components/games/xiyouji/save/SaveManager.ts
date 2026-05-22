@@ -1,4 +1,5 @@
 import type { GameSaveData } from "../types";
+import { createDefaultSaveData, normalizeProgress } from "./saveDefaults";
 
 export class SaveManager {
   private saveKey = 'game_saves';
@@ -51,5 +52,23 @@ export class SaveManager {
   // 检查是否有存档
   hasAnySave(): boolean {
     return Object.keys(this.getAllSaves()).length > 0;
+  }
+
+  /** 读取存档，不存在则创建默认档（使用角色 BASE_STATS，非写死数值） */
+  getOrCreateSave(slotId: number): GameSaveData {
+    const existing = this.loadGame(slotId);
+    if (existing) {
+      normalizeProgress(existing);
+      return existing;
+    }
+    return createDefaultSaveData(slotId);
+  }
+
+  /** 在已有存档上修改并保存，仅 mutator 触及的字段会被更新 */
+  updateSave(slotId: number, mutator: (data: GameSaveData) => void): boolean {
+    const data = this.getOrCreateSave(slotId);
+    mutator(data);
+    normalizeProgress(data);
+    return this.saveGame(slotId, data);
   }
 }

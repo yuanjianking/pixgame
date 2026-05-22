@@ -1,9 +1,32 @@
 import { BaseCharacter } from "./BaseCharacter";
 
+/** 辅助型：脆皮低攻，攻击距离远，升级偏生存 */
 export class TangSeng  extends BaseCharacter {
+  static readonly BASE_STATS = {
+    maxHp: 80,
+    attack: 5,
+    defense: 4,
+    moveRange: 3,
+    attackRange: 2,
+    healthBarColor: 0xFF6666,
+  } as const;
+
+  static readonly LEVEL_GROWTH = {
+    hp: 6,
+    attack: 1,
+    defense: 1,
+  } as const;
+
+  protected currentHp: number = TangSeng.BASE_STATS.maxHp;
+  protected maxHp: number = TangSeng.BASE_STATS.maxHp;
+  protected healthBarColor: number = TangSeng.BASE_STATS.healthBarColor;
+  protected attack: number = TangSeng.BASE_STATS.attack;
+  protected defense: number = TangSeng.BASE_STATS.defense;
+  protected battleMoveRange: number = TangSeng.BASE_STATS.moveRange;
+  protected battleAttackRange: number = TangSeng.BASE_STATS.attackRange;
+  protected levelGrowth = TangSeng.LEVEL_GROWTH;
+
   private blinkTimer: number = 0;
-  private attackTimer: number = 0;
-  private isAttacking: boolean = false;
 
   private readonly COLORS = {
     SKIN_LIGHT: 0xF5DEB3,
@@ -37,9 +60,8 @@ export class TangSeng  extends BaseCharacter {
   updateAnimation(isMoving: boolean, walkCycle: number, isAttacking: boolean = false) {
     this.isMoving = isMoving;
     this.walkCycle = walkCycle;
-    this.isAttacking = isAttacking;
-    if (isAttacking) this.attackTimer = 12;
-    else this.attackTimer = Math.max(0, this.attackTimer - 1);
+    this.tickAttackTimer(isAttacking);
+    this.tickHurtTimer();
   }
 
   private px(v: number): number {

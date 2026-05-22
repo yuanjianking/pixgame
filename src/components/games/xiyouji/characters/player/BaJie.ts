@@ -1,10 +1,32 @@
 import { BaseCharacter } from "./BaseCharacter";
 
-export class BaJie extends BaseCharacter{
+/** 肉盾型：生命与防御最高，攻击成长最慢 */
+export class BaJie extends BaseCharacter {
+  static readonly BASE_STATS = {
+    maxHp: 130,
+    attack: 8,
+    defense: 10,
+    moveRange: 2,
+    attackRange: 1,
+    healthBarColor: 0x88CC66,
+  } as const;
+
+  static readonly LEVEL_GROWTH = {
+    hp: 14,
+    attack: 1,
+    defense: 2,
+  } as const;
+
+  protected currentHp: number = BaJie.BASE_STATS.maxHp;
+  protected maxHp: number = BaJie.BASE_STATS.maxHp;
+  protected healthBarColor: number = BaJie.BASE_STATS.healthBarColor;
+  protected attack: number = BaJie.BASE_STATS.attack;
+  protected defense: number = BaJie.BASE_STATS.defense;
+  protected battleMoveRange: number = BaJie.BASE_STATS.moveRange;
+  protected battleAttackRange: number = BaJie.BASE_STATS.attackRange;
+  protected levelGrowth = BaJie.LEVEL_GROWTH;
 
   private blinkTimer: number = 0;
-  private attackTimer: number = 0;
-  private isAttacking: boolean = false;
 
 
   private readonly COLORS = {
@@ -37,9 +59,8 @@ export class BaJie extends BaseCharacter{
   updateAnimation(isMoving: boolean, walkCycle: number, isAttacking: boolean = false) {
     this.isMoving = isMoving;
     this.walkCycle = walkCycle;
-    this.isAttacking = isAttacking;
-    if (isAttacking) this.attackTimer = 12;
-    else this.attackTimer = Math.max(0, this.attackTimer - 1);
+    this.tickAttackTimer(isAttacking);
+    this.tickHurtTimer();
   }
 
   private px(v: number): number {

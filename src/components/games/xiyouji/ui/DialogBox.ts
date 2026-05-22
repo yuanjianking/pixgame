@@ -22,11 +22,15 @@ export class DialogBox {
     this.createDialogBox(name, dialogues);
   }
 
+  private typewriterTimer: Phaser.Time.TimerEvent | null = null;
+  private currentDialogIndex: number = 0;
+
   private createDialogBox(name: string, dialogues: string[]): void {
-    let canAdvance = false;  // 初始不允许跳过
+    let canAdvance = false;
+    let isTyping = false;
     const width = this.scene.cameras.main.width;
     const height = this.scene.cameras.main.height;
-    let currentIndex = 0;
+    this.currentDialogIndex = 0;
 
     this.container = this.scene.add.container(0, 0);
     this.container.setDepth(200);
@@ -53,7 +57,7 @@ export class DialogBox {
     });
 
     // 对话内容
-    this.dialogText = this.scene.add.text(width / 2, height - 85, dialogues[0], {
+    this.dialogText = this.scene.add.text(width / 2, height - 85, '', {
       fontSize: '16px',
       color: '#F5DEB3',
       fontFamily: 'monospace',
@@ -83,24 +87,70 @@ export class DialogBox {
       this.scene.input.keyboard?.off('keydown', this.keyHandler);
     }
 
+    // 打字机效果：逐字显示
+    const startTypewriter = (text: string) => {
+      if (this.typewriterTimer) {
+        this.typewriterTimer.remove();
+        this.typewriterTimer = null;
+      }
+      isTyping = true;
+      continueHint.setAlpha(0);
+      let charIndex = 0;
+      this.dialogText?.setText('');
+
+      this.typewriterTimer = this.scene.time.addEvent({
+        delay: 30,
+        repeat: text.length - 1,
+        callback: () => {
+          if (this.dialogText) {
+            this.dialogText.setText(text.substring(0, charIndex + 1));
+          }
+          charIndex++;
+          if (charIndex >= text.length) {
+            isTyping = false;
+            continueHint.setAlpha(1);
+            canAdvance = true;
+            if (this.typewriterTimer) {
+              this.typewriterTimer.remove();
+              this.typewriterTimer = null;
+            }
+          }
+        },
+      });
+    };
+
+    // 开始显示第一句
+    startTypewriter(dialogues[0]);
+
     // 创建新的监听器
     this.keyHandler = (event: KeyboardEvent) => {
-      if (!canAdvance) return;  // 还没到允许跳过的时间
+      if (!canAdvance && !isTyping) return;
       if (event.code === 'Space' || event.code === 'Enter' || event.code === 'KeyJ') {
-        currentIndex++;
-        if (currentIndex >= dialogues.length) {
+        if (isTyping) {
+          // 正在打字：立即显示完整文本
+          if (this.typewriterTimer) {
+            this.typewriterTimer.remove();
+            this.typewriterTimer = null;
+          }
+          if (this.dialogText) {
+            this.dialogText.setText(dialogues[this.currentDialogIndex]);
+          }
+          isTyping = false;
+          continueHint.setAlpha(1);
+          canAdvance = true;
+          return;
+        }
+        this.currentDialogIndex++;
+        if (this.currentDialogIndex >= dialogues.length) {
           this.close();
         } else if (this.dialogText) {
-          this.dialogText.setText(dialogues[currentIndex]);
+          canAdvance = false;
+          startTypewriter(dialogues[this.currentDialogIndex]);
         }
       }
     };
 
     this.scene.input.keyboard?.on('keydown', this.keyHandler);
-
-    this.scene.time.delayedCall(150, () => {
-        canAdvance = true;
-    });
   }
 
   // 关闭对话框
