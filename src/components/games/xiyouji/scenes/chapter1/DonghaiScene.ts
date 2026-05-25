@@ -25,6 +25,7 @@ export class DonghaiScene extends Phaser.Scene {
     private inputJController!: InputJController;
     private obstacles: { x: number; y: number; width: number; height: number }[] = [];
     private dragonKingNpc: DragonKing | null = null;
+    private npcs: { name: string; getRect: () => { x: number; y: number; width: number; height: number }; onInteract: () => void }[] = [];
     private saveData?: GameSaveData;
     private battleStarted = false;
     private victory = false;
@@ -38,11 +39,13 @@ export class DonghaiScene extends Phaser.Scene {
 
     init(data?: { saveData?: GameSaveData; victory?: boolean; playerX?: number; playerY?: number }): void {
         this.saveData = data?.saveData ?? SaveManager.getInstance().loadGame(1) ?? undefined;
-        this.victory = data?.victory ?? false;
+        // 如果未传入 victory 标记，检查任务是否已完成（防止从世界地图重新进入时任务重复触发）
+        this.victory = data?.victory ?? this.saveData?.progress?.completedTasks?.includes('get_weapon_from_dragon') ?? false;
         this.entryPosition = (data?.playerX !== undefined && data?.playerY !== undefined)
             ? { x: data.playerX, y: data.playerY }
             : undefined;
         this.obstacles = [];
+        this.npcs = [];
         this.battleStarted = false;
         this.isExiting = false;
     }
@@ -370,24 +373,14 @@ export class DonghaiScene extends Phaser.Scene {
     private checkNpcInteraction(): void {
         if (this.dialogBox.isDialogActive()) return;
 
-        const dk = this.dragonKingNpc;
-        if (!dk) return;
-
-        const pos = dk.getCollisionRect();
-        const cx = pos.x + pos.width / 2;
-        const cy = pos.y + pos.height / 2;
-        const dist = Math.hypot(this.wukong.getX() - cx, this.wukong.getY() - cy);
-
-        if (dist < 80) {
-            if (this.victory) {
-                this.dialogBox.show('东海龙王', [
-                    '大圣慢走！日后若有需要，东海龙宫定当相助！',
-                ]);
-            } else {
-                this.dialogBox.show('东海龙王', [
-                    '哼！你这猴子，口气不小！',
-                    '想要兵器？看你有没有本事从我手里拿走！',
-                ], () => this.startBattleOrTask());
+        for (const entry of this.npcs) {
+            const rect = entry.getRect();
+            const cx = rect.x + rect.width / 2;
+            const cy = rect.y + rect.height / 2;
+            const dist = Math.hypot(this.wukong.getX() - cx, this.wukong.getY() - cy);
+            if (dist < 120) {
+                entry.onInteract();
+                return;
             }
         }
     }
@@ -419,15 +412,44 @@ export class DonghaiScene extends Phaser.Scene {
             this.dialogBox
         );
         this.obstacles.push(this.dragonKingNpc.getCollisionRect());
+        this.npcs.push({
+            name: '东海龙王',
+            getRect: () => this.dragonKingNpc!.getCollisionRect(),
+            onInteract: () => {
+                if (this.victory) {
+                    this.dialogBox.show('东海龙王', [
+                        '大圣慢走！日后若有需要，东海龙宫定当相助！',
+                    ]);
+                } else {
+                    this.dialogBox.show('东海龙王', [
+                        '哼！你这猴子，口气不小！',
+                        '想要兵器？看你有没有本事从我手里拿走！',
+                    ], () => this.startBattleOrTask());
+                }
+            },
+        });
 
-        const shrimp1 = new Shrimp(this, 6 * TILE, 9 * TILE, '海虾1', ['叽叽喳喳'], this.dialogBox);
-        const shrimp2 = new Shrimp(this, 14 * TILE, 9 * TILE, '海虾2', ['叽叽喳喳'], this.dialogBox);
-        const crab1 = new Crab(this, 4 * TILE, 8 * TILE, '寄居蟹', ['嘟囔'], this.dialogBox);
+        const shrimp1 = new Shrimp(this, 6 * TILE, 9 * TILE, '虾兵', ['叽叽喳喳'], this.dialogBox);
+        const shrimp2 = new Shrimp(this, 14 * TILE, 9 * TILE, '虾兵', ['叽叽喳喳'], this.dialogBox);
+        const crab1 = new Crab(this, 4 * TILE, 8 * TILE, '蟹将', ['嘟囔'], this.dialogBox);
         this.obstacles.push(
             shrimp1.getCollisionRect(),
             shrimp2.getCollisionRect(),
             crab1.getCollisionRect()
         );
+
+        const minorNpcs = [
+            { name: '虾兵', npc: shrimp1 },
+            { name: '虾兵', npc: shrimp2 },
+            { name: '蟹将', npc: crab1 },
+        ] as const;
+        for (const { name, npc } of minorNpcs) {
+            this.npcs.push({
+                name,
+                getRect: () => npc.getCollisionRect(),
+                onInteract: () => npc.interact(),
+            });
+        }
     }
 
     private startBattleOrTask(): void {
