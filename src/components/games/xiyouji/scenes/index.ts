@@ -8,10 +8,11 @@ import WaterCurtainCaveScene from "./chapter1/WaterCurtainCaveScene";
 import WorldMapScene from "./core/WorldMapScene";
 import { DonghaiScene } from "./chapter1/DonghaiScene";
 import DonghaiVictoryScene from "./chapter1/DonghaiVictoryScene";
+import TiantingScene from "./chapter1/TiantingScene";
 import { BattleScene } from "./core/BattleScene";
 
 const CoreScenes = [BootScene, MenuScene,OpeningScene, WorldMapScene, BattleScene];
-const Chapter1Scenes = [HuaguoshanScene, WaterCurtainCaveScene, DonghaiScene, DonghaiVictoryScene];
+const Chapter1Scenes = [HuaguoshanScene, WaterCurtainCaveScene, DonghaiScene, DonghaiVictoryScene, TiantingScene];
 const DebugScenes = [TestScene];
 
 export const allScenes = [

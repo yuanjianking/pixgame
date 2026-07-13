@@ -22,6 +22,10 @@
 - **无过度抽象**: 三个相似行优于一个过早封装; 不为"将来可能"的场景做设计
 - **无 emoji**: 不在代码或 UI 中使用 emoji
 
+### 编译检查
+- 每次代码创建/修改后必须运行 `npx tsc --noEmit` 确保无编译错误
+- 禁止提交/推送有 TypeScript 编译错误的代码
+
 ---
 
 ## 美术规范 — Graphics API 纯代码渲染
@@ -61,11 +65,11 @@ src/components/games/xiyouji/
 │   └── CharacterRegistry.ts  # 工厂模式注册表
 ├── controllers/      # 输入控制器 (MovementController, InputJController)
 ├── data/             # 静态配置 (WorldData)
-├── maps/             # 地图系统 (TerrainMap, BattleGrid)
+├── maps/             # 地图系统 (TerrainMap, WaterMap, HeavenMap, BattleGrid)
 ├── save/             # 存档 (SaveManager 单例, playerSave/saveDefaults)
 ├── scenes/
 │   ├── core/         # Boot / Menu / Opening / WorldMap / Battle
-│   ├── chapter1/     # Huaguoshan / WaterCurtainCave / Donghai / DonghaiVictory
+│   ├── chapter1/     # Huaguoshan / WaterCurtainCave / Donghai / DonghaiVictory / Tianting
 │   └── sceneSave.ts  # 场景进入时统一保存
 ├── task/             # 任务系统 (TaskManager 单例, task.json)
 ├── types/            # 全局类型定义
@@ -80,6 +84,32 @@ src/components/games/xiyouji/
 - `create()` 负责所有 UI 和对象创建
 - `update()` 只做每帧逻辑 (移动/碰撞检测/场景切换)
 - 场景切换使用 `cameras.main.fadeOut()` + `scene.start()` 带参数
+
+### 场景架构模式（Map 分离）
+每个场景按"三文件"组织：
+1. `maps/<场景名>Map.ts` — 地图绘制 + 碰撞障碍物产出
+   - 背景（渐变/纹理不得留纯色）
+   - 建筑/地形/装饰
+   - 动态特效（粒子/tween）
+   - 导出 `obstacles[]` 给场景使用
+2. `scenes/chapterN/<场景名>Scene.ts` — 场景逻辑编排
+   - `init()` 接收入口坐标 + 存档数据
+   - `create()` 调用 Map.render() → 创建玩家 → UI → 存档 → NPC → 输入 → 提示
+   - `update()` 移动 + 出口检测
+   - 不包含任何绘制方法
+3. `scenes/index.ts` — 注册
+
+参考实现：`HeavenMap.ts` + `TiantingScene.ts`。
+
+### 入口位置优先级
+`create()` 中设置玩家出生位置时，优先级顺序：
+1. `this.entryPosition`（从 `init(data)` 传入的场景入口坐标）
+2. `saved?.position`（存档中的玩家位置）
+3. 硬编码默认值（场景的默认出生点）
+
+```typescript
+const startX = this.entryPosition?.x ?? saved?.position.x ?? 10 * TILE;
+```
 
 ---
 

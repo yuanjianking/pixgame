@@ -31,6 +31,40 @@
                 "items": ["金箍棒"],
                 "unlockScenes": ["WaterCurtainCaveScene", "DonghaiScene"]
             }
+        },
+        {
+            "id": "heavenly_court",
+            "name": "天庭受封",
+            "completed": false,
+            "steps": [
+                {
+                    "stepId": 1,
+                    "description": "前往天庭",
+                    "target": {
+                        "type": "arrive",
+                        "scene": "TiantingScene"
+                    }
+                },
+                {
+                    "stepId": 2,
+                    "description": "与太白金星对话",
+                    "target": {
+                        "type": "talk",
+                        "scene": "TiantingScene",
+                        "npcId": "太白金星",
+                        "dialogues": [
+                            "贫道太白金星，奉玉帝之命，特来迎接上仙。",
+                            "上仙可是花果山水帘洞孙悟空？玉帝知你修行有成，特召你上天受封。",
+                            "请随我来，玉帝已在凌霄宝殿等候多时了。"
+                        ]
+                    }
+                }
+            ],
+            "rewards": {
+                "exp": 50,
+                "items": [],
+                "unlockScenes": []
+            }
         }
     ]
 }
